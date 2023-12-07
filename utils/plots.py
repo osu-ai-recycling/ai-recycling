@@ -159,25 +159,32 @@ class Annotator:
             line_y = 400
             cv2.line(self.im, (0, line_y), (self.im.shape[1], line_y), (255, 0, 0), 25)
             
-        # print(c,int(centroid_y))
-        print(count_0,count_1,count_2,count_3)
-            
-        if int(centroid_y) > 400 and int(centroid_y) < 410 :
-            # centroid_x = (box[0] + box[2]) // 2
-            # centroid_y = (box[1] + box[3]) // 2
-            
-            # # for centroid
-            # cv2.circle(self.im, (int(centroid_x), int(centroid_y)), 10, (0,0,0), -1)
-            if (id2([c,box])) not in used:
-                if c ==0:
-                    count_0+=1
-                elif c == 1:
-                    count_1+=1
-                elif c==2:
-                    count_2+=1 
-                elif c==3:
-                    count_3 +=1
-                   
+            # print(c,int(centroid_y))
+            print(count_0,count_1,count_2,count_3)
+                
+            if int(centroid_y) > 400 and int(centroid_y) < 405 :
+                if (id2([c,box])) not in used:
+                    if c ==0:
+                        count_0+=1
+            if int(centroid_y) > 400 and int(centroid_y) < 420 :
+                if (id2([c,box])) not in used:
+                    if c ==1:
+                        count_1+=1
+            if int(centroid_y) > 400 and int(centroid_y) < 415 :
+                if (id2([c,box])) not in used:
+                    if c ==2:
+                        count_2+=1
+            if int(centroid_y) > 400 and int(centroid_y) < 415 :
+                if (id2([c,box])) not in used:
+                    if c ==3:
+                        count_3+=1
+                    # elif c == 1:
+                    #     count_1+=1
+                    # elif c==2:
+                    #     count_2+=1 
+                    # elif c==3:
+                    #     count_3 +=1
+                       
             used.append(id2([c,box]))
                    
                    
