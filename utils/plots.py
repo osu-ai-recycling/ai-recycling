@@ -8,6 +8,7 @@ import math
 import os
 from copy import copy
 from pathlib import Path
+from urllib.error import URLError
 
 import cv2
 import matplotlib
@@ -16,13 +17,18 @@ import numpy as np
 import pandas as pd
 import seaborn as sn
 import torch
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 from scipy.ndimage.filters import gaussian_filter1d
-from ultralytics.utils.plotting import Annotator
+
 
 from utils import TryExcept, threaded
-from utils.general import LOGGER, clip_boxes, increment_path, xywh2xyxy, xyxy2xywh
+from utils.general import (CONFIG_DIR, FONT, LOGGER, check_font, check_requirements, clip_boxes, increment_path,
+                           is_ascii, xywh2xyxy, xyxy2xywh)
 from utils.metrics import fitness
+from utils.segment.general import scale_image
+
+from datetime import datetime
+import matplotlib.colors as mcolors
 
 # Settings
 RANK = int(os.getenv('RANK', -1))
@@ -49,6 +55,225 @@ class Colors:
 
 
 colors = Colors()  # create instance for 'from utils.plots import colors'
+
+
+def check_pil_font(font=FONT, size=10):
+    # Return a PIL TrueType Font, downloading to CONFIG_DIR if necessary
+    font = Path(font)
+    font = font if font.exists() else (CONFIG_DIR / font.name)
+    try:
+        return ImageFont.truetype(str(font) if font.exists() else font.name, size)
+    except Exception:  # download if missing
+        try:
+            check_font(font)
+            return ImageFont.truetype(str(font), size)
+        except TypeError:
+            check_requirements('Pillow>=8.4.0')  # known issue https://github.com/ultralytics/yolov5/issues/5374
+        except URLError:  # not online
+            return ImageFont.load_default()
+        
+
+
+# defined function for color and coordinates extraction
+def coordinates_extraction(self, box, label, fraction_hyp):
+    coord = []
+    p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
+
+    
+    # Calculate the centroid
+    centroid_x = (box[0] + box[2]) // 2
+    centroid_y = (box[1] + box[3]) // 2
+    
+    # for centroid
+    cv2.circle(self.im, (int(centroid_x), int(centroid_y)), 10, (0,255,0), -1)
+     
+    if label == 'can':
+        obj_cls = 0
+        
+    elif label == 'milk_jug':
+        obj_cls = 1
+    
+    elif label == 'non_white_jug':
+        obj_cls = 2
+        
+    elif label == 'plastic_bottle':
+        obj_cls = 3
+        
+    else:
+        obj_cls = None
+        
+            
+    coord.append(obj_cls)
+    coord.append(box)
+    
+    dominant_color = (0,0,255) 
+    
+    return coord, dominant_color,centroid_y
+
+import hashlib
+def id2(box):
+    # Use hashlib to create a hash from the box coordinates
+    hash_object = hashlib.md5(str(box).encode())
+    return hash_object.hexdigest()[:4]
+
+
+
+class Annotator:
+    # YOLOv5 Annotator for train/val mosaics and jpgs and detect/hub inference annotations
+    def __init__(self, im, line_width=None, font_size=None, font='Arial.ttf', pil=False, example='abc',debug_save=False):
+        assert im.data.contiguous, 'Image not contiguous. Apply np.ascontiguousarray(im) to Annotator() input images.'
+        non_ascii = not is_ascii(example)  # non-latin labels, i.e. asian, arabic, cyrillic
+        self.pil = pil or non_ascii
+        if self.pil:  # use PIL
+            self.im = im if isinstance(im, Image.Image) else Image.fromarray(im)
+            self.draw = ImageDraw.Draw(self.im)
+            self.font = check_pil_font(font='Arial.Unicode.ttf' if non_ascii else font,
+                                       size=font_size or max(round(sum(self.im.size) / 2 * 0.035), 12))
+        else:  # use cv2
+            self.im = im
+        # if debug_save:    
+        self.lw = line_width or max(round(sum(im.shape) / 2 * 0.003), 2)  # line width
+    
+    def box_label(self, box,c, label='', color=(128, 128, 128), txt_color=(255, 255, 255),debug_save=False, fraction_hyp=1/8,
+                  count_0=0,count_1=0,count_2=0,count_3=0,used=[]):
+              
+        # Add one xyxy box to image with label
+        if self.pil or not is_ascii(label):
+            self.draw.rectangle(box, width=self.lw, outline=color)  # box
+            if label:
+                w, h = self.font.getsize(label)  # text width, height (WARNING: deprecated) in 9.2.0
+                # _, _, w, h = self.font.getbbox(label)  # text width, height (New)
+                outside = box[1] - h >= 0  # label fits outside box
+                self.draw.rectangle(
+                    (box[0], box[1] - h if outside else box[1], box[0] + w + 1,
+                     box[1] + 1 if outside else box[1] + h + 1),
+                    fill=color,
+                )
+                # self.draw.text((box[0], box[1]), label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
+                self.draw.text((box[0], box[1] - h if outside else box[1]), label, fill=txt_color, font=self.font)
+        else:  # cv2
+            coord, dominant_color,centroid_y = coordinates_extraction(self, box, label, fraction_hyp) # calling extraction function
+            # if debug_save:
+            p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
+            cv2.rectangle(self.im, p1, p2, color, thickness=self.lw, lineType=cv2.LINE_AA)
+            line_y = 400
+            cv2.line(self.im, (0, line_y), (self.im.shape[1], line_y), (255, 0, 0), 25)
+            
+        # print(c,int(centroid_y))
+        print(count_0,count_1,count_2,count_3)
+            
+        if int(centroid_y) > 400 and int(centroid_y) < 410 :
+            # centroid_x = (box[0] + box[2]) // 2
+            # centroid_y = (box[1] + box[3]) // 2
+            
+            # # for centroid
+            # cv2.circle(self.im, (int(centroid_x), int(centroid_y)), 10, (0,0,0), -1)
+            if (id2([c,box])) not in used:
+                if c ==0:
+                    count_0+=1
+                elif c == 1:
+                    count_1+=1
+                elif c==2:
+                    count_2+=1 
+                elif c==3:
+                    count_3 +=1
+                   
+            used.append(id2([c,box]))
+                   
+                   
+            
+            
+            if label:
+                tf = max(self.lw - 1, 1)  # font thickness
+                w, h = cv2.getTextSize(label, 0, fontScale=self.lw / 3, thickness=tf)[0]  # text width, height
+                outside = p1[1] - h >= 3
+                p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
+                cv2.rectangle(self.im, p1, p2, dominant_color, -1, cv2.LINE_AA)  # filled, changed from color to dominant color
+                cv2.putText(self.im,
+                            label, (p1[0], p1[1] - 2 if outside else p1[1] + h + 2),
+                            0,
+                            self.lw / 3,
+                            txt_color,
+                            thickness=tf,
+                            lineType=cv2.LINE_AA)
+                # return(coord,centroid_y,self.im)
+        
+            
+            text = str(count_0) + "," + str(count_1) + "," + str(count_2) + "," + str(count_3)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 5
+            font_thickness = 5
+            font_color = (255, 255, 255)  # White
+            
+            # Get text size to determine the size of the background rectangle
+            text_size = cv2.getTextSize(text, font, font_scale, font_thickness)[0]
+            
+            # Calculate the position for the text with some space
+            image_width = self.im.shape[1]
+            text_x = (image_width - text_size[0]) // 2  # Center the text horizontally
+            text_y = 140  # Adjust the top-side space
+
+            
+            # Draw a filled rectangle as the background
+            background_color = (0, 0, 255)  # Red
+            cv2.rectangle(self.im, (text_x - 10, text_y - text_size[1] + 10), (text_x + text_size[0] + 10, text_y + 10), background_color, -1)
+            
+            # Put text on the image
+            cv2.putText(self.im, text, (text_x, text_y), font, font_scale, font_color, font_thickness)
+
+                  
+        return count_0,count_1,count_2,count_3, used
+     
+
+    def masks(self, masks, colors, im_gpu, alpha=0.5, retina_masks=False):
+        """Plot masks at once.
+        Args:
+            masks (tensor): predicted masks on cuda, shape: [n, h, w]
+            colors (List[List[Int]]): colors for predicted masks, [[r, g, b] * n]
+            im_gpu (tensor): img is in cuda, shape: [3, h, w], range: [0, 1]
+            alpha (float): mask transparency: 0.0 fully transparent, 1.0 opaque
+        """
+        if self.pil:
+            # convert to numpy first
+            self.im = np.asarray(self.im).copy()
+        if len(masks) == 0:
+            self.im[:] = im_gpu.permute(1, 2, 0).contiguous().cpu().numpy() * 255
+        colors = torch.tensor(colors, device=im_gpu.device, dtype=torch.float32) / 255.0
+        colors = colors[:, None, None]  # shape(n,1,1,3)
+        masks = masks.unsqueeze(3)  # shape(n,h,w,1)
+        masks_color = masks * (colors * alpha)  # shape(n,h,w,3)
+
+        inv_alph_masks = (1 - masks * alpha).cumprod(0)  # shape(n,h,w,1)
+        mcs = (masks_color * inv_alph_masks).sum(0) * 2  # mask color summand shape(n,h,w,3)
+
+        im_gpu = im_gpu.flip(dims=[0])  # flip channel
+        im_gpu = im_gpu.permute(1, 2, 0).contiguous()  # shape(h,w,3)
+        im_gpu = im_gpu * inv_alph_masks[-1] + mcs
+        im_mask = (im_gpu * 255).byte().cpu().numpy()
+        self.im[:] = im_mask if retina_masks else scale_image(im_gpu.shape, im_mask, self.im.shape)
+        if self.pil:
+            # convert im back to PIL and update draw
+            self.fromarray(self.im)
+
+    def rectangle(self, xy, fill=None, outline=None, width=1):
+        # Add rectangle to image (PIL-only)
+        self.draw.rectangle(xy, fill, outline, width)
+
+    def text(self, xy, text, txt_color=(255, 255, 255), anchor='top'):
+        # Add text to image (PIL-only)
+        if anchor == 'bottom':  # start y from font bottom
+            w, h = self.font.getsize(text)  # text width, height
+            xy[1] += 1 - h
+        self.draw.text(xy, text, fill=txt_color, font=self.font)
+
+    def fromarray(self, im):
+        # Update self.im from a numpy array
+        self.im = im if isinstance(im, Image.Image) else Image.fromarray(im)
+        self.draw = ImageDraw.Draw(self.im)
+
+    def result(self):
+        # Return annotated image as array
+        return np.asarray(self.im)
 
 
 def feature_visualization(x, module_type, stage, n=32, save_dir=Path('runs/detect/exp')):
@@ -150,7 +375,7 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None):
         x, y = int(w * (i // ns)), int(h * (i % ns))  # block origin
         annotator.rectangle([x, y, x + w, y + h], None, (255, 255, 255), width=2)  # borders
         if paths:
-            annotator.text([x + 5, y + 5], text=Path(paths[i]).name[:40], txt_color=(220, 220, 220))  # filenames
+            annotator.text((x + 5, y + 5), text=Path(paths[i]).name[:40], txt_color=(220, 220, 220))  # filenames
         if len(targets) > 0:
             ti = targets[targets[:, 0] == i]  # image targets
             boxes = xywh2xyxy(ti[:, 2:6]).T
@@ -385,7 +610,7 @@ def plot_results(file='path/to/results.csv', dir=''):
             for i, j in enumerate([1, 2, 3, 4, 5, 8, 9, 10, 6, 7]):
                 y = data.values[:, j].astype('float')
                 # y[y == 0] = np.nan  # don't show zero values
-                ax[i].plot(x, y, marker='.', label=f.stem, linewidth=2, markersize=8)  # actual results
+                ax[i].plot(x, y, marker='.', label=f.stem, linewidth=2, markersize=8)
                 ax[i].plot(x, gaussian_filter1d(y, sigma=3), ':', label='smooth', linewidth=2)  # smoothing line
                 ax[i].set_title(s[j], fontsize=12)
                 # if j in [8, 9, 10]:  # share train and val loss y axes
