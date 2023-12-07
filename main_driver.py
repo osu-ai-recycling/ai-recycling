@@ -17,8 +17,8 @@ import hashlib
 
 
 # Add YOLOv5 folder to the sys.path
-# yolov5_path = "C:/Users/AI/Aditya_project/yolov5_aditya"
-yolov5_path = "C:/Users/user/Spyder Project/YOLOv5/yolov5_farwest"   # change back
+# yolov5_path = "C:/Users/user/Spyder Project/YOLOv5/yolov5_farwest"   # change back
+yolov5_path ="/home/aditya/aditya-work/yolov5_farwest/"
 sys.path.append(yolov5_path)
 
 # Import the run function
