@@ -46,8 +46,8 @@ centroid_y_high = 750
 # Load the model
 model, stride, names, pt = load_model(weights=weights, device=device)
 
-video_path = "C:/Users/user/Downloads/try_small_test.mp4"
-
+# video_path = "C:/Users/user/Downloads/try_small_test.mp4"
+video_path ="/home/aditya/aditya-work/far_west_dataset_v3/far_west_test_video.mp4"
  
 run(
     weights=weights,
