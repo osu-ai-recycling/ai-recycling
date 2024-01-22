@@ -27,8 +27,7 @@ from utils.general import (CONFIG_DIR, FONT, LOGGER, check_font, check_requireme
 from utils.metrics import fitness
 from utils.segment.general import scale_image
 
-from datetime import datetime
-import matplotlib.colors as mcolors
+import time
 
 # Settings
 RANK = int(os.getenv('RANK', -1))
@@ -71,52 +70,45 @@ def check_pil_font(font=FONT, size=10):
             check_requirements('Pillow>=8.4.0')  # known issue https://github.com/ultralytics/yolov5/issues/5374
         except URLError:  # not online
             return ImageFont.load_default()
-        
-
-
-# defined function for color and coordinates extraction
-def coordinates_extraction(self, box, label, fraction_hyp):
+    
+    
+def coordinates_extraction(self, box, obj_cls):
     coord = []
     p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
-
+    
+    # Calculate the diagonal length
+    diagonal_length = np.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
+    
+    # Calculate the radius as 1/8th of the diagonal length
+    # print(fraction_hyp)
+    radius = int(diagonal_length * (1/8))
     
     # Calculate the centroid
     centroid_x = (box[0] + box[2]) // 2
     centroid_y = (box[1] + box[3]) // 2
     
+    
+    # Extract the circular region of interest (ROI) within the bounding box
+    x1 = max(p1[0], int(centroid_x) - radius)
+    y1 = max(p1[1], int(centroid_y) - radius)
+    x2 = min(p2[0], int(centroid_x) + radius)
+    y2 = min(p2[1], int(centroid_y) + radius)
+    
+    roi = self.im[y1:y2, x1:x2]
+    
+    # Draw the circular ROI on the original image
+    cv2.circle(self.im, (int(centroid_x), int(centroid_y)), radius, (0, 255, 0), 2, cv2.LINE_AA)
+
+    
     # for centroid
     cv2.circle(self.im, (int(centroid_x), int(centroid_y)), 10, (0,255,0), -1)
-     
-    if label == 'can':
-        obj_cls = 0
-        
-    elif label == 'milk_jug':
-        obj_cls = 1
-    
-    elif label == 'non_white_jug':
-        obj_cls = 2
-        
-    elif label == 'plastic_bottle':
-        obj_cls = 3
-        
-    else:
-        obj_cls = None
-        
-            
+
+      
     coord.append(obj_cls)
-    coord.append(box)
+    coord.append(int(centroid_x))
+    coord.append(int(centroid_y))    
     
-    dominant_color = (0,0,255) 
-    
-    return coord, dominant_color,centroid_y
-
-import hashlib
-def id2(box):
-    # Use hashlib to create a hash from the box coordinates
-    hash_object = hashlib.md5(str(box).encode())
-    return hash_object.hexdigest()[:4]
-
-
+    return coord
 
 class Annotator:
     # YOLOv5 Annotator for train/val mosaics and jpgs and detect/hub inference annotations
@@ -134,8 +126,7 @@ class Annotator:
         # if debug_save:    
         self.lw = line_width or max(round(sum(im.shape) / 2 * 0.003), 2)  # line width
     
-    def box_label(self, box,c, label='', color=(128, 128, 128), txt_color=(255, 255, 255),debug_save=False, fraction_hyp=1/8,
-                  count_0=0,count_1=0,count_2=0,count_3=0,used=[]):
+    def box_label(self, box,c, label='', color=(128, 128, 128), txt_color=(255, 255, 255), debug_save=False, obj_cls = None):
               
         # Add one xyxy box to image with label
         if self.pil or not is_ascii(label):
@@ -152,84 +143,29 @@ class Annotator:
                 # self.draw.text((box[0], box[1]), label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
                 self.draw.text((box[0], box[1] - h if outside else box[1]), label, fill=txt_color, font=self.font)
         else:  # cv2
-            coord, dominant_color,centroid_y = coordinates_extraction(self, box, label, fraction_hyp) # calling extraction function
+            coord = coordinates_extraction(self, box, obj_cls)
             # if debug_save:
             p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
             cv2.rectangle(self.im, p1, p2, color, thickness=self.lw, lineType=cv2.LINE_AA)
-            line_y = 400
-            cv2.line(self.im, (0, line_y), (self.im.shape[1], line_y), (255, 0, 0), 25)
-            
-            # print(c,int(centroid_y))
-            print(count_0,count_1,count_2,count_3)
-                
-            if int(centroid_y) > 400 and int(centroid_y) < 405 :
-                if (id2([c,box])) not in used:
-                    if c ==0:
-                        count_0+=1
-            if int(centroid_y) > 400 and int(centroid_y) < 420 :
-                if (id2([c,box])) not in used:
-                    if c ==1:
-                        count_1+=1
-            if int(centroid_y) > 400 and int(centroid_y) < 415 :
-                if (id2([c,box])) not in used:
-                    if c ==2:
-                        count_2+=1
-            if int(centroid_y) > 400 and int(centroid_y) < 415 :
-                if (id2([c,box])) not in used:
-                    if c ==3:
-                        count_3+=1
-                    # elif c == 1:
-                    #     count_1+=1
-                    # elif c==2:
-                    #     count_2+=1 
-                    # elif c==3:
-                    #     count_3 +=1
-                       
-            used.append(id2([c,box]))
-                   
-                   
-            
+                            
             
             if label:
                 tf = max(self.lw - 1, 1)  # font thickness
                 w, h = cv2.getTextSize(label, 0, fontScale=self.lw / 3, thickness=tf)[0]  # text width, height
                 outside = p1[1] - h >= 3
                 p2 = p1[0] + w, p1[1] - h - 3 if outside else p1[1] + h + 3
-                cv2.rectangle(self.im, p1, p2, dominant_color, -1, cv2.LINE_AA)  # filled, changed from color to dominant color
+                cv2.rectangle(self.im, p1, p2, (0,0,255), -1, cv2.LINE_AA)  # filled, changed from color to dominant color
                 cv2.putText(self.im,
+                            # str(coord[2])
                             label, (p1[0], p1[1] - 2 if outside else p1[1] + h + 2),
                             0,
                             self.lw / 3,
                             txt_color,
                             thickness=tf,
                             lineType=cv2.LINE_AA)
-                # return(coord,centroid_y,self.im)
-        
-            
-            text = str(count_0) + "," + str(count_1) + "," + str(count_2) + "," + str(count_3)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            font_scale = 5
-            font_thickness = 5
-            font_color = (255, 255, 255)  # White
-            
-            # Get text size to determine the size of the background rectangle
-            text_size = cv2.getTextSize(text, font, font_scale, font_thickness)[0]
-            
-            # Calculate the position for the text with some space
-            image_width = self.im.shape[1]
-            text_x = (image_width - text_size[0]) // 2  # Center the text horizontally
-            text_y = 140  # Adjust the top-side space
 
-            
-            # Draw a filled rectangle as the background
-            background_color = (0, 0, 255)  # Red
-            cv2.rectangle(self.im, (text_x - 10, text_y - text_size[1] + 10), (text_x + text_size[0] + 10, text_y + 10), background_color, -1)
-            
-            # Put text on the image
-            cv2.putText(self.im, text, (text_x, text_y), font, font_scale, font_color, font_thickness)
-
-                  
-        return count_0,count_1,count_2,count_3, used
+        return coord
+    
      
 
     def masks(self, masks, colors, im_gpu, alpha=0.5, retina_masks=False):

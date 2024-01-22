@@ -17,8 +17,8 @@ import hashlib
 
 
 # Add YOLOv5 folder to the sys.path
-# yolov5_path = "C:/Users/user/Spyder Project/YOLOv5/yolov5_farwest"   # change back
-yolov5_path ="/home/aditya/aditya-work/yolov5_farwest/"
+yolov5_path = "C:/Users/user/Spyder Project/YOLOv5/yolov5_farwest"   # change back
+# yolov5_path ="/home/aditya/aditya-work/yolov5_farwest/"
 sys.path.append(yolov5_path)
 
 # Import the run function
@@ -35,19 +35,17 @@ print('recycle.pt')
 # weights = os.path.join(yolov5_path, "yolov5x_bottle_back_openvino_model")
 
 iou_thres =0.15 # 0.15
-conf_thres = 0.75 # 0.35
+conf_thres = 0.8 # 0.35
 augment = True
 debug_save = True  # change to True if want to save image for debugging
 device = "CPU"
-fraction_hyp = 1/8
-centroid_y_low = 500,
-centroid_y_high = 750
 
 # Load the model
 model, stride, names, pt = load_model(weights=weights, device=device)
 
+video_path = "C:/Users/user/Downloads/RemoteX-Aditya/Far West/far_west_test_video.mp4"
 # video_path = "C:/Users/user/Downloads/try_small_test.mp4"
-video_path ="/home/aditya/aditya-work/far_west_dataset_v3/far_west_test_video.mp4"
+# video_path ="/home/aditya/aditya-work/far_west_dataset_v3/far_west_test_video.mp4"
  
 run(
     weights=weights,
@@ -60,7 +58,6 @@ run(
     names=names,
     pt=pt,
     debug_save=debug_save,
-    fraction_hyp = fraction_hyp
     )
 
 sys.exit()

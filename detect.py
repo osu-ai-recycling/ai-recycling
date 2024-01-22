@@ -88,9 +88,10 @@ def run(
         augment=False,  # augmented inference
         visualize=False,  # visualize features
         update=False,  # update all models
-        project=ROOT / 'runs/detect',  # save results to project/name
-        name='exp',  # save results to project/name
-        exist_ok=False,  # existing project/name ok, do not increment
+        # project=ROOT / 'runs/detect',  # save results to project/name
+        project=ROOT / 'runs/check',  # save results to project/name
+        name='exp7',  # save results to project/name
+        exist_ok=True,  # existing project/name ok, do not increment
         line_thickness=3,  # bounding box thickness (pixels)
         hide_labels=False,  # hide labels
         hide_conf=False,  # hide confidences
@@ -103,20 +104,12 @@ def run(
         centroid_y_low = float('-inf'),
         centroid_y_high = float('inf'),
         fraction_hyp = 1/8,
-        
-        host = "localhost", # added host and port for socket connection
-        port = 1234,
+
         model=None,stride=None,names=None,pt=None
 ):
+    
     # checkpoint_0 = datetime.now()
-    count_0=0
-    count_1=0
-    count_2=0
-    count_3=0
-    used = []
-    if len(used) > 50:
-        used.clear()
-        
+    
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
     is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -182,24 +175,21 @@ def run(
                 txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
             s += '%gx%g ' % im.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
-            imc = im0.copy() if save_crop else im0  # for save_crop
+            # imc = im0.copy() if save_crop else im0  # for save_crop
             annotator = Annotator(im0, line_width=line_thickness, example=str(names),debug_save=debug_save)
             
             if len(det):        
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
                 
-                found_classes = {}
                 # Print results
                 for c in det[:, 5].unique():
                     n = (det[:, 5] == c).sum()  # detections per class
                     
                     s += f"{n} {names[int(c)]}{'s' * (n > 1)}, "  # add to string
-                
                 # Write results
-                
+                count = 0
                 for *xyxy, conf, cls in reversed(det):
-                    
                     #count += 1
                     if debug_save:
                         if  save_txt:  # Write to file
@@ -211,24 +201,20 @@ def run(
                     if save_img or save_crop or view_img:  # Add bbox to image
                         c = int(cls)  # integer class 
                         label = None if hide_labels else (names[c] if hide_conf else f'{names[c]} {conf:.2f}')
-                                                           
-                        count_0,count_1,count_2,count_3,used = annotator.box_label(xyxy,c, label, color=colors(c, True),debug_save=debug_save, fraction_hyp=fraction_hyp,
-                                                                              count_0=count_0,count_1=count_1,count_2=count_2,count_3=count_3, used = used) 
-                        lst.append([c,(xyxy)])
-                        
-                       
-                            
-                        
-            
+                        coord = annotator.box_label(xyxy,c, label, color=colors(c, True), debug_save=debug_save,obj_cls = c) 
+                        lst.append(coord)
+                        count += 1                        
+                lst.insert(0,count)
+
             # Stream results
-            # im0 = annotator.result()
-            # if view_img:
-            #     if platform.system() == 'Linux' and p not in windows:
-            #         windows.append(p)
-            #         cv2.namedWindow(str(p), cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)  # allow window resize (Linux)
-            #         cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
-            #     cv2.imshow(str(p), im0)
-            #     cv2.waitKey(1)  # 1 millisecond
+            im0 = annotator.result()
+            if view_img:
+                if platform.system() == 'Linux' and p not in windows:
+                    windows.append(p)
+                    cv2.namedWindow(str(p), cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)  # allow window resize (Linux)
+                    cv2.resizeWindow(str(p), im0.shape[1], im0.shape[0])
+                cv2.imshow(str(p), im0)
+                cv2.waitKey(1)  # 1 millisecond
 
             # Save results (image with detections)
             if debug_save:
@@ -251,22 +237,33 @@ def run(
                         vid_writer[i].write(im0)
 
         # Print time (inference-only)
-    #     if debug_save:
-    #         LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms")
-
-    # # Print results
-    # # t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
-    # # LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
-    # if debug_save:
-    #     if save_txt or save_img:
-    #         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
-    #         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
-    # if update:
-    #     strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
+        
+        if debug_save:
+            LOGGER.info(f"{s}{'' if len(det) else '(no detections), '}{dt[1].dt * 1E3:.1f}ms")
+    
+    # Print results
+    # t = tuple(x.t / seen * 1E3 for x in dt)  # speeds per image
+    # LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
+    if debug_save:
+        if save_txt or save_img:
+            s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
+            LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
+    if update:
+        strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
        
-    # print(count_0,count_1,count_2,count_3)
-    return lst
 
+    flatten_list(lst)
+    response_msg = ', '.join(flatten_list(lst))
+    return response_msg    
+
+def flatten_list(lst):
+    flattened = []
+    for item in lst:
+        if isinstance(item, list):
+            flattened.extend(flatten_list(item))
+        else:
+            flattened.append(str(item))
+    return flattened
 
     
     
@@ -312,7 +309,6 @@ def parse_opt():
 
 def main(opt):
     try:
-        
         # run
         check_requirements(ROOT / 'requirements.txt', exclude=('tensorboard', 'thop'))
         check_requirements(exclude=('tensorboard', 'thop'))
