@@ -12,7 +12,6 @@ import sys
 import tempfile
 import time
 import keyboard
-import hashlib
 
 
 # Add YOLOv5 folder to the sys.path
@@ -24,7 +23,7 @@ sys.path.append(yolov5_path)
 from detect import run, load_model
 
 ### YOLO model
-weights = os.path.join(yolov5_path, 'modified_model1.pt')
+weights = os.path.join(yolov5_path, 'check.pt')
 print('recycle.pt')
 
 
@@ -164,15 +163,15 @@ while True:
             count+=1
             # encoding response
             response = output.encode()
-            print ("*** Detected : ", output[0], " objects")
+            # print ("*** Detected : ", output[0], " objects")
             # print(response)
             
-            """if len(output) > 0:
+            if len(output) > 0:
                 print ("*** Detected : ", output[:2], " objects")
             else:
                 print ("*** No object detected")
                 output = "0"
-                """
+                
             # encoding rsponse lenghth
             response_len = len(response).to_bytes(4, "little", signed=False)
 

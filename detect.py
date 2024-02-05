@@ -90,7 +90,7 @@ def run(
         update=False,  # update all models
         # project=ROOT / 'runs/detect',  # save results to project/name
         project=ROOT / 'runs/check',  # save results to project/name
-        name='exp7',  # save results to project/name
+        name='exp14',  # save results to project/name
         exist_ok=True,  # existing project/name ok, do not increment
         line_thickness=3,  # bounding box thickness (pixels)
         hide_labels=False,  # hide labels
@@ -254,7 +254,7 @@ def run(
 
     flatten_list(lst)
     response_msg = ', '.join(flatten_list(lst))
-    return response_msg    
+    return response_msg   
 
 def flatten_list(lst):
     flattened = []
