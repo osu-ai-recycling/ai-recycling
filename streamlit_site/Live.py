@@ -3,6 +3,7 @@ from datetime import timedelta
 import streamlit as st
 from PIL import Image
 import matplotlib.pyplot as plt
+import os
 
 image = Image.open('icon.png')
 
@@ -30,11 +31,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.header("Exploring Camera Stream Data")
-st.text("This page allows you to delve into your Camstream data collected on various dates.")
+# st.text("This page allows you to delve into your Camstream data collected on various dates.")
 
-@st.cache_data
+@st.cache_data(ttl=10)
 def load_data(path):
   df = pd.read_excel(path)
+  new_headers = {0: 'Cans', 1: 'Milk Jugs', 2: 'Non-white Jugs', 3: 'Plastic bottles'}
+  df.rename(columns=new_headers, inplace=True)
   return df
 
 
@@ -60,18 +63,30 @@ def weekly(start_date, data):
 
     return weekly_df, 'Date'
 
+
 file_path = 'count_result.xlsx'
-data = load_data(file_path)
+# data = load_data(file_path)
+
+# Check if the file exists
+file_path = 'count_result.xlsx'
+if not os.path.exists(file_path):
+    st.error("No detections till now")
+    data = None
+else:
+    data = load_data(file_path)
+    
 
 with st.expander("Data Preview"):
+  st.info("New data is constantly added. Click 'R' to refresh and view it.", icon="ℹ")
   st.dataframe(data, use_container_width=True, hide_index=True)
 
 st.divider()
 
+data['time-stamp'] = pd.to_datetime(data['time-stamp'], format='%d-%m-%Y %H:%M')
 min_date = data['time-stamp'].min().date()
 max_date = data['time-stamp'].max().date()
 selected_date = st.date_input("Select Date", value=None, min_value=min_date, 
-                              max_value=max_date, format="MM/DD/YYYY")
+                              max_value=max_date, format="DD/MM/YYYY")
 
 if selected_date is None:
    st.info("Select a Date", icon="ℹ")
@@ -88,22 +103,25 @@ st.divider()
 st.dataframe(result, use_container_width=True, hide_index=True)
 st.divider()
 st.bar_chart(result.set_index(result.columns[0]))
+# st.bar_chart(result.set_index(x=result.columns[0]))
 
+# Get the list of classes from the columns (excluding the first column)
 classes = data.columns[1:]
 
 # Add a dropdown for selecting a class
 selected_class = st.selectbox("Select an object from the list", classes)
-
+# Plotting using Matplotlib for custom x-axis label
 fig, ax = plt.subplots()
 if display_mode == 'Daily':
     ax.bar(result[x_label], result[selected_class])
     ax.set_xlabel(x_label)
-    ax.set_xticks(result[x_label])
+    # ax.set_xticks(result[x_label])
 else:
     ax.bar(result['Date'], result[selected_class])
     ax.set_xlabel(x_label)
     # ax.set_xticks(result['Date'])
 
 ax.set_ylabel(selected_class)
-plt.xticks(rotation=45, ha='right')  
+plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better readability
 st.pyplot(fig)
+
