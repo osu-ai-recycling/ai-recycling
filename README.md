@@ -7,7 +7,7 @@ Welcome to the YOLOv5 Farwest project repository. This project utilizes the YOLO
 Before starting, ensure you have the following installed on your system:
 
 - Git
-- Python 3.6 or newer
+- Python 3.8 or newer
 
 ## Installation
 
