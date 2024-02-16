@@ -99,21 +99,15 @@ def detect_and_display():
                 current_frame = None
 
         if local_frame is not None:
-            # Use a temporary file for the detection process
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_img:
-                temp_image_path = tmp_img.name
-                cv2.imwrite(temp_image_path, local_frame)
+            
 
             # Run detection on the temporary image file
-            output = run(weights=weights, source=temp_image_path, iou_thres=iou_thres,
+            output = run(weights=weights, source=local_frame, iou_thres=iou_thres,
                          conf_thres=conf_thres, augment=augment, model=model, stride=stride,
                          names=names, pt=pt, debug_save=debug_save)
-            os.remove(temp_image_path)  # Clean up the temporary file
-            
-            print(output)
 
             # Every 10 frames
-            if frame_counter % 9 == 0:
+            if frame_counter % 14 == 0:
                 a, unflattened_lst = unflatten(output)
                 check = count_first_items(unflattened_lst, ct)
                 
@@ -126,7 +120,7 @@ def detect_and_display():
             
             # print(f"Received response for frame {frame_counter}: ", response_msg)
             print(f"Duration for this frame: {duration:.3f} seconds")
-            print ("==================================")
+            # print ("==================================")
 
 
 
@@ -161,5 +155,5 @@ def send_image(video_path):
     cap.release()
     
 # Paths and parameters for video processing
-video_path = "../recycle_small_test_slow.mp4"
+video_path = "C:/Users/user/Downloads/recycle_small_test_slow.mp4"
 send_image(video_path)

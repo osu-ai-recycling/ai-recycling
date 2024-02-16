@@ -43,7 +43,7 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.common import DetectMultiBackend
-from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams
+from utils.dataloaders import IMG_FORMATS, VID_FORMATS, LoadImages, LoadScreenshots, LoadStreams, cv2frame_loader
 from utils.general import (LOGGER, Profile, check_file, check_img_size, check_imshow, check_requirements, colorstr, cv2,
                            increment_path, non_max_suppression, print_args, scale_boxes, strip_optimizer, xyxy2xywh)
 from utils.plots import Annotator, colors, save_one_box
@@ -52,6 +52,7 @@ from utils.torch_utils import select_device, smart_inference_mode
 import socket
 from datetime import datetime
 import time
+import numpy as np
 
 
 # Create a socket
@@ -89,7 +90,7 @@ def run(
         visualize=False,  # visualize features
         update=False,  # update all models
         # project=ROOT / 'runs/detect',  # save results to project/name
-        project=ROOT / 'runs/try',  # save results to project/name
+        project=ROOT / 'runs/try1',  # save results to project/name
         name='exp',  # save results to project/name
         exist_ok=True,  # existing project/name ok, do not increment
         line_thickness=3,  # bounding box thickness (pixels)
@@ -109,15 +110,20 @@ def run(
 ):
     
     # checkpoint_0 = datetime.now()
+    is_frame = isinstance(source, np.ndarray)
     
-    source = str(source)
-    save_img = not nosave and not source.endswith('.txt')  # save inference images
-    is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
-    is_url = source.lower().startswith(('rtsp://', 'rtmp://', 'http://', 'https://'))
-    webcam = source.isnumeric() or source.endswith('.streams') or (is_url and not is_file)
-    screenshot = source.lower().startswith('screen')
-    if is_url and is_file:
-        source = check_file(source)  # download
+    if not is_frame:
+        source = str(source)
+        save_img = not nosave and not source.endswith('.txt')  # save inference images
+        is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
+        is_url = source.lower().startswith(('rtsp://', 'rtmp://', 'http://', 'https://'))
+        webcam = source.isnumeric() or source.endswith('.streams') or (is_url and not is_file)
+        screenshot = source.lower().startswith('screen')
+        if is_url and is_file:
+            source = check_file(source)  # download
+            
+    else:
+        save_img = not nosave   # save inference images
     
     # Directories
     if debug_save == True:
@@ -129,14 +135,18 @@ def run(
 
     # Dataloader
     bs = 1  # batch_size
-    if webcam:
-        view_img = check_imshow(warn=True)
-        dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride)
-        bs = len(dataset)
-    elif screenshot:
-        dataset = LoadScreenshots(source, img_size=imgsz, stride=stride, auto=pt)
+    if not is_frame:
+        if webcam:
+            view_img = check_imshow(warn=True)
+            dataset = LoadStreams(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride)
+            bs = len(dataset)
+        elif screenshot:
+            dataset = LoadScreenshots(source, img_size=imgsz, stride=stride, auto=pt)
+        else:
+            dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride)
+    
     else:
-        dataset = LoadImages(source, img_size=imgsz, stride=stride, auto=pt, vid_stride=vid_stride)
+        dataset = cv2frame_loader(source, img_size=imgsz, stride=stride, auto=pt)
     vid_path, vid_writer = [None] * bs, [None] * bs
     
 
@@ -163,7 +173,7 @@ def run(
         for i, det in enumerate(pred):  # per image
             lst = []
             seen += 1
-            if webcam:  # batch_size >= 1
+            if  not is_frame and webcam :  # batch_size >= 1
                 p, im0, frame = path[i], im0s[i].copy(), dataset.count
                 s += f'{i}: '
             else:
@@ -172,6 +182,7 @@ def run(
             p = Path(p)  # to Path
             if debug_save:
                 save_path = str(save_dir / p.name)  # im.jpg
+                print(save_path)
                 txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
             s += '%gx%g ' % im.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh

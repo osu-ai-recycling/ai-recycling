@@ -29,7 +29,7 @@ print('check.pt')
 iou_thres = 0.05
 conf_thres = 0.65
 augment = True
-debug_save = False
+debug_save = True
 device = "CPU"
 
 # Load the model
@@ -56,6 +56,7 @@ def count_first_items(matrix, counts):
                 counts[int(first_item)] += 1
     return counts
 
+
 def append_to_excel(file_path, data_dict):
     # Current timestamp in the format "dd-mm-yyyy HH:MM"
     current_timestamp = datetime.now().strftime("%d-%m-%Y %H:%M")
@@ -68,6 +69,7 @@ def append_to_excel(file_path, data_dict):
         df_updated = df_new
     df_updated.to_excel(file_path, index=False)
 
+ 
 def read_frames(cap):
     global current_frame, stop_threads
     while not stop_threads:
@@ -80,7 +82,8 @@ def read_frames(cap):
             break
         with frame_lock:
             current_frame = frame
-
+            
+            
 def detect_and_display():
     """
     Perform object detection on captured frames and display the results.
@@ -113,7 +116,7 @@ def detect_and_display():
             # print(output)
 
             # Every 10 frames
-            if frame_counter % 9 == 0:
+            if frame_counter % 4 == 0:
                 a, unflattened_lst = unflatten(output)
                 check = count_first_items(unflattened_lst, ct)
                 
@@ -131,6 +134,7 @@ def detect_and_display():
             
 def send_image(video_path):
     global stop_threads, ct, data_appended
+    time_1 = time.time()
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print("Error: Could not open video file.")
@@ -143,7 +147,10 @@ def send_image(video_path):
 
     thread_read.join()
     thread_detect.join()
-
+    
+    time_2 = time.time()
+    duration_1 = time_2 - time_1
+    print(duration_1)
     # if not data_appended:  # Check if there's unappended data before exiting
     append_to_excel(excel_file_path, check)
         # print("Final counts appended to Excel file.")

@@ -18,6 +18,8 @@ from pathlib import Path
 from threading import Thread
 from urllib.parse import urlparse
 
+import time
+
 import numpy as np
 import psutil
 import torch
@@ -337,6 +339,86 @@ class LoadImages:
 
     def __len__(self):
         return self.nf  # number of files
+    
+
+
+
+def letterbox_1(im, new_shape=(640, 640), stride=32, auto=True, scaleFill=False, scaleup=True, color=(114, 114, 114)):
+    # Resize and pad image while keeping aspect ratio
+    shape = im.shape[:2]  # current shape [height, width]
+    if isinstance(new_shape, int):
+        new_shape = (new_shape, new_shape)
+
+    # Scale ratio (new / old)
+    r = min(new_shape[0] / shape[0], new_shape[1] / shape[1])
+    if not scaleup:  # only scale down, do not scale up (for better test mAP)
+        r = min(r, 1.0)
+
+    # Compute padding
+    ratio = r, r  # width, height ratios
+    new_unpad = int(round(shape[1] * r)), int(round(shape[0] * r))
+    dw, dh = new_shape[1] - new_unpad[0], new_shape[0] - new_unpad[1]  # wh padding
+    if auto:  # minimum rectangle
+        dw, dh = np.mod(dw, stride), np.mod(dh, stride)  # wh padding
+
+    dw /= 2  # divide padding into 2 sides
+    dh /= 2
+
+    if shape[::-1] != new_unpad:  # resize
+        im = cv2.resize(im, new_unpad, interpolation=cv2.INTER_LINEAR)
+    top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
+    left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
+    im = cv2.copyMakeBorder(im, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)  # add border
+    return im, ratio, (dw, dh)
+
+class CV2FrameLoader:
+    def __init__(self, frame, img_size=640, stride=32, auto=True):
+        self.frame = frame
+        self.img_size = img_size
+        self.stride = stride
+        self.auto = auto
+        self.count = 0  # To keep track of whether the frame has been processed
+        self.mode = 'image'
+        
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.count == 0:
+            self.count += 1
+            # Resize and pad frame
+            im, _, _ = letterbox(self.frame, new_shape=self.img_size, stride=self.stride, auto=self.auto)
+            im = im[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB
+            im = np.ascontiguousarray(im)  # Ensure contiguous array
+
+            # Placeholder values for compatibility with YOLOv5's processing pipeline
+            path =  str(time.time())+ ".jpg"
+            im0 = self.frame  # Original frame for reference
+            vid_cap = None
+            s = 'image 1/1 frame: '
+
+            return path, im, im0, vid_cap, s
+        else:
+            raise StopIteration
+
+def cv2frame_loader(frame, img_size=640, stride=32, auto=True):
+    """
+    Create a loader for a single OpenCV image frame.
+
+    :param frame: OpenCV image frame to process.
+    :param img_size: Inference size (height, width).
+    :param stride: Model stride.
+    :param auto: Automatically adjust img_size to be divisible by stride.
+    :return: An instance of CV2FrameLoader.
+    """
+    return CV2FrameLoader(frame, img_size, stride, auto)
+
+# Example of using cv2frame_loader:
+# frame = cv2.imread('path/to/image.jpg')  # Load frame using OpenCV
+# loader = cv2frame_loader(frame)  # Initialize loader with the frame
+# for path, im, im0, vid_cap, s in loader:
+    # Process the frame here
+
 
 
 class LoadStreams:
