@@ -7,7 +7,7 @@ Welcome to the YOLOv5 Farwest project repository. This project utilizes the YOLO
 Before starting, ensure you have the following installed on your system:
 
 - Git
-- Python 3.6 or newer
+- Python 3.8 or newer
 
 ## Installation
 
@@ -26,8 +26,8 @@ pip install -r requirements.txt
 ### 2. Configuration
 Before running inference, you should check and adjust the model, source, and parameters according to your needs:
 
-Model and Parameters: Inspect test_server.py to verify the model settings, source paths, and parameters such as debug_save, confidences, etc.
-Customized Parameters: Review detect.py for customized parameters, including paths where the results should be saved.
+Model and Parameters: Inspect **test_server.py** to verify the model settings, source paths, and parameters such as **debug_save**, **confidences**, etc.
+Customized Parameters: Review **detect.py** for **customized parameters**, including paths where the results should be saved.
 
 
 ### 3. Running Inference
