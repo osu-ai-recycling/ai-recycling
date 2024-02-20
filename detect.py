@@ -171,6 +171,7 @@ def run(
     
         # Process predictions
         for i, det in enumerate(pred):  # per image
+            results = []
             lst = []
             seen += 1
             if  not is_frame and webcam :  # batch_size >= 1
@@ -192,7 +193,7 @@ def run(
             if len(det):        
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
-                
+
                 # Print results
                 for c in det[:, 5].unique():
                     n = (det[:, 5] == c).sum()  # detections per class
@@ -201,6 +202,9 @@ def run(
                 # Write results
                 count = 0
                 for *xyxy, conf, cls in reversed(det):
+                    
+                    results.append(([box.tolist() for box in xyxy], conf.tolist(), cls.tolist()))
+
                     #count += 1
                     if debug_save:
                         if  save_txt:  # Write to file
@@ -261,11 +265,11 @@ def run(
             LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
     if update:
         strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
-       
-
+    
     flatten_list(lst)
     response_msg = ', '.join(flatten_list(lst))
-    return response_msg   
+    return results
+    # return response_msg   
 
 def flatten_list(lst):
     flattened = []
