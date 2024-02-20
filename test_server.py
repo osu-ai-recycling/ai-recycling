@@ -17,6 +17,8 @@ import tempfile  # For creating temporary files for image processing
 import keyboard  # For detecting ESC key press to terminate the script
 import pandas as pd  # For creating and updating Excel files
 from datetime import datetime  # For timestamping detection events
+from math import sqrt
+import argparse
 import time
 
 # Add YOLOv5 directory to the system path to import custom functions
@@ -81,6 +83,102 @@ def read_frames(cap):
         with frame_lock:
             current_frame = frame
 
+def intersect (b1: list, b2: list) -> bool:
+    """
+    Takes two bounding boxes and determines if there's an intersection
+
+    @param b1: the first bounding box (format: [xmin, ymin, xmax, ymax])
+    @param b2: the second bounding box (format: [xmin, ymin, xmax, ymax])
+    """
+
+    x_overlap = (b1[0] <= b2[0] <= b1[2]) or (b1[0] <= b2[2] <= b1[2])
+    y_overlap = (b1[1] <= b2[1] <= b1[3]) or (b1[1] <= b2[3] <= b1[3])
+
+    return x_overlap and y_overlap
+
+def centroid(box: list) -> tuple[int, int]:
+    """
+    Takes a bounding box as input and returns its centroid as a tuple.
+
+    @param box: the bounding box (format: [xmin, ymin, xmax, ymax])
+    """
+    
+    xmin, ymin, xmax, ymax = box[0], box[1], box[2], box[3]
+
+    return ((xmin+xmax)/2, (ymin+ymax)/2)
+
+def get_occluded (boxes: list, confidences: list) -> list:
+    """
+    Detects occlusions and returns a list of indices for which objects should be ignored.
+
+    @param boxes: a list of bounding boxes (format is [xmin, ymin, xmax, ymax])
+    @param confidences: a list of confidences so the ith confidence corresponds to the ith box
+    """
+    
+    indices_to_remove = []
+
+    for i, box_a in enumerate(boxes):
+        for j, box_b in enumerate(boxes):
+            # ignore boxes we don't need to calculate
+            # if j is less than or equal to i, they've already been compared
+            if j <= i:
+                continue
+
+            if intersect(box_a, box_b):
+                centroid_a = centroid(box_a)
+                centroid_b = centroid(box_b)
+
+                # get diagonal of each box
+                diagonal_a = sqrt((box_a[2] - box_a[0])**2 + (box_a[3] - box_a[1])**2)
+                diagonal_b = sqrt((box_b[2] - box_b[0])**2 + (box_b[3] - box_b[1])**2)
+
+                # calculate area of each box
+                area_a = (box_a[2] - box_a[0]) * (box_a[3] - box_a[0])
+                area_b = (box_b[2] - box_b[0]) * (box_b[3] - box_b[0])
+
+                # calculate area difference ratio
+                size_diff_ratio = abs(area_a - area_b) / max(area_a, area_b)
+
+                # size threshold, for example, 0.5 means the size difference should not exceed 50%
+                size_threshold = 0.5
+
+                # sum of diagonal of each box, and take 1/8 of the sum, use it as the distance threshold
+                dist_threshold = (diagonal_a + diagonal_b)/8
+
+                # if the euclidean distance between the centroids is greater than the threshold, ignore
+                # if the size difference ratio is smaller than the threshold, ignore
+                centroid_distance = sqrt((centroid_b[0] - centroid_b[0])**2 + (centroid_a[1] - centroid_b[1])**2)
+                if (centroid_distance > dist_threshold) and (size_diff_ratio < size_threshold):
+                    continue
+                
+                # ignore the item with lower confidence
+                if confidences[i] > confidences[j]:
+                    indices_to_remove.append(j)
+                else:
+                    indices_to_remove.append(i)
+    
+    return indices_to_remove
+
+def pickup_order(output: list) -> list:
+    """
+    Takes output from modified run() and returns it in the optimal order
+    to pick it up in.
+
+    @param output: tuple (box: list, conf: float, cls: int)
+                   for the bounding box, confidence, and class
+    """
+
+    # extract boxes and confidences
+    boxes = list(map(lambda obj: obj[0], output))
+    confs = list(map(lambda obj: obj[1], output))
+
+    # figure out which boxes to ignore and remove them from the list
+    occluded_indices = get_occluded(boxes, confs)
+    boxes = [box for i, box in enumerate(boxes) if i not in occluded_indices]
+
+    # return sorted by ymin
+    return sorted(boxes, key = lambda b: b[1], reverse=False)
+
 def detect_and_display():
     """
     Perform object detection on captured frames and display the results.
@@ -106,11 +204,15 @@ def detect_and_display():
                          conf_thres=conf_thres, augment=augment, model=model, stride=stride,
                          names=names, pt=pt, debug_save=debug_save)
 
-            # Every 10 frames
+            # Every 10 frames update the count
             if frame_counter % 14 == 0:
-                a, unflattened_lst = unflatten(output)
-                check = count_first_items(unflattened_lst, ct)
-                
+                for _, _, label in output:
+                    ct[label] += 1
+
+            # this will determine pickup order and return
+            # an ordered list of objects in output    
+            # output = pickup_order(output)
+            
             end_time = time.time()
 
             # Calculate and accumulate the duration
@@ -149,11 +251,13 @@ def send_image(video_path):
     print("")
     print("")
     print(f"Total duration for {frame_counter} frames: {total_duration:.3f} seconds")
-    print ("count",check)
+    print ("count",ct)
    
     stop_threads = True
     cap.release()
     
 # Paths and parameters for video processing
-video_path = "C:/Users/user/Downloads/recycle_small_test_slow.mp4"
-send_image(video_path)
+parser = argparse.ArgumentParser()
+parser.add_argument("video_path", type=str, help="Path to the video to read.")
+args = parser.parse_args()
+send_image(args.video_path)
