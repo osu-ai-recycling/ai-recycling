@@ -191,6 +191,9 @@ def detect_and_display():
             break
 
         with frame_lock:
+            if current_frame is None:
+                continue
+
             # Run detection on the temporary image file
             output = run(weights=weights, source=current_frame, iou_thres=iou_thres,
                          conf_thres=conf_thres, augment=augment, model=model, stride=stride,
