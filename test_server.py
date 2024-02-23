@@ -190,17 +190,9 @@ def detect_and_display():
             stop_threads = True
             break
 
-        local_frame = None
         with frame_lock:
-            if current_frame is not None:
-                local_frame = current_frame.copy()
-                current_frame = None
-
-        if local_frame is not None:
-            
-
             # Run detection on the temporary image file
-            output = run(weights=weights, source=local_frame, iou_thres=iou_thres,
+            output = run(weights=weights, source=current_frame, iou_thres=iou_thres,
                          conf_thres=conf_thres, augment=augment, model=model, stride=stride,
                          names=names, pt=pt, debug_save=debug_save)
 
