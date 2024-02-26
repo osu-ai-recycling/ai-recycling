@@ -2,8 +2,10 @@
 """
 Created on Wed Dec 27 20:34:10 2023
 
-@author: user
+@author: aadi
 """
+"socket listener to farwest_client.py, runs model on recieved image"
+
 import socket
 import cv2
 import numpy as np
@@ -15,7 +17,7 @@ import keyboard
 
 
 # Add YOLOv5 folder to the sys.path
-yolov5_path = "C:/Users/user/Spyder Project/YOLOv5/yolov5_farwest"   # change back
+yolov5_path = "../yolov5_farwest"   # change back
 # yolov5_path ="/home/aditya/aditya-work/yolov5_farwest/"
 sys.path.append(yolov5_path)
 
@@ -24,14 +26,15 @@ from detect import run, load_model
 
 ### YOLO model
 weights = os.path.join(yolov5_path, 'check.pt')
-print('recycle.pt')
+print('check.pt')
 
 
-iou_thres =0.45 # 0.15
-conf_thres = 0.35 # 0.35
+iou_thres =0.05 # 0.05
+conf_thres = 0.65 # 0.65
 augment = True
-debug_save = True  # change to True if want to save image for debugging
+debug_save = False  # change to True if want to save image for debugging
 device = "CPU"
+response_as_bbox = False
 
 # Load the model
 model, stride, names, pt = load_model(weights=weights, device=device)
@@ -130,16 +133,11 @@ while True:
             img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
             # print("  Image size: ", img.shape)
 
-            # Save the cv2 image to a temporary file
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_img:
-                temp_image_path = tmp_img.name
-                cv2.imwrite(temp_image_path, img)
-
             # Call the run function
             before = time.time()
             output = run(
                 weights=weights,
-                source=temp_image_path,
+                source=img,
                 iou_thres=iou_thres,
                 conf_thres=conf_thres,
                 augment=augment,
@@ -148,19 +146,49 @@ while True:
                 names=names,
                 pt=pt,
                 debug_save=debug_save,
+                response_as_bbox = response_as_bbox,
             )
+            
+            if not response_as_bbox:
+                # Every 10 frames
+                if (count%9 ==0):
+                    a,unflattened_lst = unflatten(output)
+                    check = count_first_items(unflattened_lst, ct)
+                    
+                count+=1
+                
+            else:
+                # Turn the first element in each tuple in output list into a np array
+                xyxy = np.array([np.array([int(d[0][0]), int(d[0][1]), int(d[0][2]), int(d[0][3])]) for d in output])
+                # Second element is the confidence score
+                confs = np.array([d[1] for d in output])
+                # Third element is the category id
+                labels = np.array([d[2] for d in output])
+
+                # Feed this to supervision
+                detections = sv.Detections(xyxy, confidence=confs, class_id=labels)
+                detections = tracker.update_with_detections(detections)
+
+                try:
+                    for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
+                        if tracker_id not in seen_ids:
+                            consecutive_frames[tracker_id] += 1
+                            if consecutive_frames[tracker_id] >= sv_cons_frames:
+                                seen_ids.append(tracker_id)
+                                seen_ids = seen_ids[-30:]
+                                ct[class_id] += 1
+                        # Delete IDs that are not tracked consistently
+                        if tracker_id not in detections.tracker_id:
+                            consecutive_frames.pop(tracker_id, None)
+                except TypeError as e:
+                    # Sometimes the detections are empty, and zip doesn't like that
+                    print(e)
+                    pass
+                
             after = time.time()
             duration = after - before
             print("  inference time: ", duration * 1000, " ms")
-
-            # Remove the temporary image file
-            os.remove(temp_image_path)
             
-            if (count%9 ==0):
-                a,unflattened_lst = unflatten(output)
-                check = count_first_items(unflattened_lst, ct)
-                
-            count+=1
             # encoding response
             response = output.encode()
             # print ("*** Detected : ", output[0], " objects")
