@@ -33,7 +33,7 @@ from detect import run, load_model
 weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
-augment = True  # Whether to use image augmentation during detection
+augment = False  # Whether to use image augmentation during detection
 debug_save = False  # Whether to save debug images
 device = "CPU"  # Specify the device to use for inference ('CPU' or 'GPU')
 
@@ -48,7 +48,7 @@ stop_threads = False  # Flag to control the stopping of threads
 frame_counter = 0  # Counter for processed frames
 total_duration = 0
 use_sv = True # Use supervision for counting unique objects
-sv_cons_frames = 10 # Number of consecutive frames to consider an object as detected
+sv_cons_frames = 4 # Number of consecutive frames to consider an object as detected
 # KMP_DUPLICATE_LIB_OK=TRUE
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
@@ -192,7 +192,8 @@ def send_image(video_path):
     # Format: {category_id: count}
     count = pd.DataFrame(ct.items(), columns=['Category', 'Count'])
     print ("count",dict(ct))
-   
+    for class_id, count in dict(ct).items():
+        print(f'{model.names[class_id]}: {count}')
     stop_threads = True
     cap.release()
     
