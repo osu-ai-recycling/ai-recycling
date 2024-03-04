@@ -2,11 +2,9 @@
 """
 Created on Thu Jan 18 06:37:13 2024
 
-@author: aadi
+@author: user
 """
 
-""" reads image on thread while sending images and recieving on the other,
-compatible with farwest_server.py socket, its version 2 of farwest_client.py"""
 
 import socket
 import threading
@@ -111,10 +109,10 @@ def send_and_receive_frames():
         print ("==================================")
         
 
-def send_image(video_path):
+def send_image(image_path):
     # Main function to handle video capture and threading
     global current_frame, stop_threads
-    cap = cv2.VideoCapture(video_path)
+    cap = cv2.VideoCapture(image_path)
     if not cap.isOpened():
         print("Error: Could not open video file.")
         return
@@ -148,8 +146,8 @@ def send_image(video_path):
     stop_threads = True
     cap.release()
 
-# Replace 'video_path' with the path to your video
-video_path = "../recycle_small_test_slow.mp4`"
-send_image(video_path)
+# Replace 'image_path' with the path to your video
+image_path = "C:/Users/user/Downloads/recycle_small_test_slow.mp4"
+send_image(image_path)
 # Close the socket
 sock.close()
