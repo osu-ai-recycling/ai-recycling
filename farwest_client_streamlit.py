@@ -2,11 +2,9 @@
 """
 Created on Thu Jan 18 06:37:13 2024
 
-@author: aadi
+@author: user
 """
 
-""""client code with threading (read and send image on thread to server on socket) 
-which also displays image on streamlit website"""
 
 import socket
 import threading
@@ -148,7 +146,7 @@ def send_image(image_path):
     cap.release()
 
 # Replace 'image_path' with the path to your video
-image_path = "../far_west_test_video.mp4"
+image_path = "C:/Users/user/Downloads/RemoteX-Aditya/Far West/far_west_test_video.mp4"
 send_image(image_path)
 # Close the socket
 sock.close()
