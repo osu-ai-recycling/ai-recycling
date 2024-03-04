@@ -2,7 +2,7 @@
 """
 Created on Mon Feb  5 09:15:16 2024
 
-@author: user
+@author: aadi
 
 This script is designed for object detection in video streams using the YOLOv5 model. 
 It captures video frames, and processes them to detect objects. 
@@ -16,15 +16,11 @@ import threading  # For running tasks in parallel
 import os  # For file path operations
 import sys  # For adding the YOLOv5 directory to the system path
 import tempfile  # For creating temporary files for image processing
-import tempfile  # For creating temporary files for image processing
 import keyboard  # For detecting ESC key press to terminate the script
 import pandas as pd  # For creating and updating Excel files
 from collections import defaultdict  # For creating a dictionary with default values
-import supervision as sv  # For counting unique objects in detection results
 import numpy as np  # For array operations
 from datetime import datetime  # For timestamping detection events
-from math import sqrt
-import argparse
 import time
 import supervision as sv  # For counting unique objects in detection results
 
@@ -50,7 +46,6 @@ model, stride, names, pt = load_model(weights=weights, device=device)
 
 # Initialize variables for frame processing and detection counts
 ct = defaultdict(int)  # Dictionary to count detected objects by category
-ct = defaultdict(int)  # Dictionary to count detected objects by category
 current_frame = None  # Variable to store the current frame for processing
 frame_lock = threading.Lock()  # Lock for thread-safe operations on the current frame
 stop_threads = False  # Flag to control the stopping of threads
@@ -61,25 +56,6 @@ sv_cons_frames = 4 # Number of consecutive frames to consider an object as detec
 # KMP_DUPLICATE_LIB_OK=TRUE
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-# def unflatten(input_string):
-#     """
-#     Reformat a flat input string from detection output into a structured format.
-#     """
-#     values = input_string.split(',')
-#     first_value = values[0]
-#     grouped_values = [values[i:i+3] for i in range(1, len(values), 3)]
-#     return first_value, grouped_values
-
-# def count_first_items(matrix, counts):
-#     """
-#     Count occurrences of the first item in each inner list of a 2D list (matrix).
-#     """
-#     for inner_list in matrix:
-#         if inner_list:
-#             first_item = inner_list[0]
-#             if int(first_item) in counts:
-#                 counts[int(first_item)] += 1
-#     return counts
 
 def read_frames(cap):
     """
@@ -97,111 +73,10 @@ def read_frames(cap):
         with frame_lock:
             current_frame = frame
 
-def intersect (b1: list, b2: list) -> bool:
-    """
-    Takes two bounding boxes and determines if there's an intersection
-
-    @param b1: the first bounding box (format: [xmin, ymin, xmax, ymax])
-    @param b2: the second bounding box (format: [xmin, ymin, xmax, ymax])
-    """
-
-    x_overlap = (b1[0] <= b2[0] <= b1[2]) or (b1[0] <= b2[2] <= b1[2])
-    y_overlap = (b1[1] <= b2[1] <= b1[3]) or (b1[1] <= b2[3] <= b1[3])
-
-    return x_overlap and y_overlap
-
-def centroid(box: list) -> tuple[int, int]:
-    """
-    Takes a bounding box as input and returns its centroid as a tuple.
-
-    @param box: the bounding box (format: [xmin, ymin, xmax, ymax])
-    """
-    
-    xmin, ymin, xmax, ymax = box[0], box[1], box[2], box[3]
-
-    return ((xmin+xmax)/2, (ymin+ymax)/2)
-
-def get_occluded (boxes: list, confidences: list) -> list:
-    """
-    Detects occlusions and returns a list of indices for which objects should be ignored.
-
-    @param boxes: a list of bounding boxes (format is [xmin, ymin, xmax, ymax])
-    @param confidences: a list of confidences so the ith confidence corresponds to the ith box
-    """
-    
-    indices_to_remove = []
-
-    for i, box_a in enumerate(boxes):
-        for j, box_b in enumerate(boxes):
-            # ignore boxes we don't need to calculate
-            # if j is less than or equal to i, they've already been compared
-            if j <= i:
-                continue
-
-            if intersect(box_a, box_b):
-                centroid_a = centroid(box_a)
-                centroid_b = centroid(box_b)
-
-                # get diagonal of each box
-                diagonal_a = sqrt((box_a[2] - box_a[0])**2 + (box_a[3] - box_a[1])**2)
-                diagonal_b = sqrt((box_b[2] - box_b[0])**2 + (box_b[3] - box_b[1])**2)
-
-                # calculate area of each box
-                area_a = (box_a[2] - box_a[0]) * (box_a[3] - box_a[0])
-                area_b = (box_b[2] - box_b[0]) * (box_b[3] - box_b[0])
-
-                # calculate area difference ratio
-                size_diff_ratio = abs(area_a - area_b) / max(area_a, area_b)
-
-                # size threshold, for example, 0.5 means the size difference should not exceed 50%
-                size_threshold = 0.5
-
-                # sum of diagonal of each box, and take 1/8 of the sum, use it as the distance threshold
-                dist_threshold = (diagonal_a + diagonal_b)/8
-
-                # if the euclidean distance between the centroids is greater than the threshold, ignore
-                # if the size difference ratio is smaller than the threshold, ignore
-                centroid_distance = sqrt((centroid_b[0] - centroid_b[0])**2 + (centroid_a[1] - centroid_b[1])**2)
-                if (centroid_distance > dist_threshold) and (size_diff_ratio < size_threshold):
-                    continue
-                
-                # ignore the item with lower confidence
-                if confidences[i] > confidences[j]:
-                    indices_to_remove.append(j)
-                else:
-                    indices_to_remove.append(i)
-    
-    return indices_to_remove
-
-def pickup_order(output: list) -> list:
-    """
-    Takes output from modified run() and returns it in the optimal order
-    to pick it up in.
-
-    @param output: tuple (box: list, conf: float, cls: int)
-                   for the bounding box, confidence, and class
-    """
-
-    # extract boxes and confidences
-    boxes = list(map(lambda obj: obj[0], output))
-    confs = list(map(lambda obj: obj[1], output))
-
-    # figure out which boxes to ignore and remove them from the list
-    occluded_indices = get_occluded(boxes, confs)
-    boxes = [box for i, box in enumerate(boxes) if i not in occluded_indices]
-
-    # return sorted by ymin
-    return sorted(boxes, key = lambda b: b[1], reverse=False)
-
 def detect_and_display():
     """
     Perform object detection on captured frames and display the results.
     """
-    global current_frame, stop_threads, frame_counter, ct, total_duration
-    tracker = sv.ByteTrack()            # Bytetrack takes a number of optional arguments, TODO tuning
-    seen_ids = []
-    consecutive_frames = defaultdict(int)
-
     global current_frame, stop_threads, frame_counter, ct, total_duration
     tracker = sv.ByteTrack()            # Bytetrack takes a number of optional arguments, TODO tuning
     seen_ids = []
@@ -212,18 +87,18 @@ def detect_and_display():
         if keyboard.is_pressed('esc'):  # Listen for ESC key to stop
             stop_threads = True
             break
-        
+
         local_frame = None
         with frame_lock:
             if current_frame is not None:
                 local_frame = current_frame.copy()
                 current_frame = None
-                
+
         if local_frame is not None:
             # Run detection on the temporary image file
             output = run(weights=weights, source=local_frame, iou_thres=iou_thres,
                          conf_thres=conf_thres, augment=augment, model=model, stride=stride,
-                         names=names, pt=pt, debug_save=debug_save)
+                         names=names, pt=pt, debug_save=debug_save, response_as_bbox=response_as_bbox)
 
             if not response_as_bbox:
                 # Every 10 frames
@@ -308,8 +183,6 @@ def send_image(video_path):
     cap.release()
     
 # Paths and parameters for video processing
-parser = argparse.ArgumentParser()
-parser.add_argument("video_path", type=str, help="Path to the video to read.")
-args = parser.parse_args()
-send_image(args.video_path)
-
+# video_path = "C:/Users/user/Downloads/recycle_small_test_slow.mp4"
+video_path = "../recycle_small_test_slow.mp4"
+send_image(video_path)
