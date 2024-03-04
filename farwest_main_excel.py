@@ -15,6 +15,7 @@ from datetime import datetime
 from collections import defaultdict  # For creating a dictionary with default values
 import supervision as sv  # For counting unique objects in detection results
 import numpy as np
+import json
 
 # Add YOLOv5 folder to the sys.path
 yolov5_path = "../yolov5_farwest"   # Adjust as needed
@@ -33,6 +34,7 @@ augment = True
 debug_save = False
 device = "CPU"
 response_as_bbox = True
+if_cloud = False
 
 # Load the model
 model, stride, names, pt = load_model(weights=weights, device=device)
@@ -191,10 +193,17 @@ def send_image(video_path):
         print("Final counts appended to Excel file.")
         # for class_id, count in dict(ct).items():
         #     print(f'{model.names[class_id]}: {count}')
+        if if_cloud == True:
+            json_string = json.dumps(dict(ct))
+            
     else:
         print(check)
         append_to_excel(excel_file_path, check)
         print("Final counts appended to Excel file.")
+        if if_cloud == True:
+            json_string = json.dumps(check)
+        
+    
 
     stop_threads = True
     cap.release()
@@ -202,11 +211,5 @@ def send_image(video_path):
 # Paths
 video_path = "../recycle_small_test_slow.mp4"
 excel_file_path = "../count_result.xlsx"
-
-# video_path = "C:/Users/user/Downloads/recycle_small_test_slow.mp4"
-# excel_file_path = "C:/Users/user/Spyder Project/YOLOv5/yolov5_farwest/streamlit_site/count_result.xlsx"
-# folder_path = "../test"
-# for file in os.listdir(folder_path):
-#         video_path = os.path.join(folder_path, file)
 
 send_image(video_path)
