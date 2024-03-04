@@ -2,7 +2,7 @@
 """
 Created on Mon Feb  5 09:15:16 2024
 
-@author: aadi
+@author: user
 
 This script is designed for object detection in video streams using the YOLOv5 model. It captures video frames, and processes them to detect objects. 
 The script uses multi-threading to improve performance by simultaneously reading frames andperforming object detection. 
@@ -13,7 +13,15 @@ import cv2  # For handling video capture and image operations
 import threading  # For running tasks in parallel
 import os  # For file path operations
 import sys  # For adding the YOLOv5 directory to the system path
+import tempfile  # For creating temporary files for image processing
 import keyboard  # For detecting ESC key press to terminate the script
+import pandas as pd  # For creating and updating Excel files
+from collections import defaultdict  # For creating a dictionary with default values
+import supervision as sv  # For counting unique objects in detection results
+import numpy as np  # For array operations
+from datetime import datetime  # For timestamping detection events
+from math import sqrt
+import argparse
 import time
 
 # Add YOLOv5 directory to the system path to import custom functions
@@ -25,12 +33,11 @@ from detect import run, load_model
 
 # YOLO model parameters
 weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
-iou_thres = 0.65  # Intersection Over Union threshold for determining detection accuracy
-conf_thres = 0.5  # Confidence threshold for detecting objects
-augment = True  # Whether to use image augmentation during detection
+iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
+conf_thres = 0.65  # Confidence threshold for detecting objects
+augment = False  # Whether to use image augmentation during detection
 debug_save = False  # Whether to save debug images
 device = "CPU"  # Specify the device to use for inference ('CPU' or 'GPU')
-response_as_bbox = False
 
 # Load the YOLO model with the specified parameters
 model, stride, names, pt = load_model(weights=weights, device=device)
@@ -204,17 +211,42 @@ def detect_and_display():
             # Run detection on the temporary image file
             output = run(weights=weights, source=local_frame, iou_thres=iou_thres,
                          conf_thres=conf_thres, augment=augment, model=model, stride=stride,
-                         names=names, pt=pt, debug_save=debug_save, response_as_bbox=response_as_bbox)
+                         names=names, pt=pt, debug_save=debug_save)
 
-            # Every 10 frames
-            if frame_counter % 15 == 0:
-                a, unflattened_lst = unflatten(output)
-                a1 = time.time()
-                check = count_first_items(unflattened_lst, ct)
-                a2 = time.time()
-                tt = a2 - a1
-                # print(f"calculation for this frame: {tt:.5f} seconds")
-                
+            if not use_sv:
+                # Every 10 frames
+                if frame_counter % 14 == 0:
+                    for detection in output:
+                        ct[detection[2]] += 1
+            else:
+                # Turn the first element in each tuple in output list into a np array
+                xyxy = np.array([np.array([int(d[0][0]), int(d[0][1]), int(d[0][2]), int(d[0][3])]) for d in output])
+                # Second element is the confidence score
+                confs = np.array([d[1] for d in output])
+                # Third element is the category id
+                labels = np.array([d[2] for d in output])
+
+                # Feed this to supervision
+                detections = sv.Detections(xyxy, confidence=confs, class_id=labels)
+                detections = tracker.update_with_detections(detections)
+
+                try:
+                    for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
+                        if tracker_id not in seen_ids:
+                            consecutive_frames[tracker_id] += 1
+                            if consecutive_frames[tracker_id] >= sv_cons_frames:
+                                seen_ids.append(tracker_id)
+                                seen_ids = seen_ids[-30:]
+                                ct[class_id] += 1
+                        # Delete IDs that are not tracked consistently
+                        if tracker_id not in detections.tracker_id:
+                            consecutive_frames.pop(tracker_id, None)
+                except TypeError as e:
+                    # Sometimes the detections are empty, and zip doesn't like that
+                    print(e)
+                    pass
+
+
                 
             end_time = time.time()
 
@@ -225,7 +257,7 @@ def detect_and_display():
             
             # print(f"Received response for frame {frame_counter}: ", response_msg)
             print(f"Duration for this frame: {duration:.3f} seconds")
-            print ("==================================")
+            # print ("==================================")
 
 
 
@@ -254,13 +286,18 @@ def send_image(video_path):
     print("")
     print("")
     print(f"Total duration for {frame_counter} frames: {total_duration:.3f} seconds")
-    print("avg time taken per frame : ", total_duration/frame_counter)
-    
-    print ("count",check)
-   
+    # Print the detection counts
+    # Format: {category_id: count}
+    count = pd.DataFrame(ct.items(), columns=['Category', 'Count'])
+    print ("count",dict(ct))
+    for class_id, count in dict(ct).items():
+        print(f'{model.names[class_id]}: {count}')
     stop_threads = True
     cap.release()
     
 # Paths and parameters for video processing
-video_path = "../recycle_small_test_slow.mp4"
-send_image(video_path)
+parser = argparse.ArgumentParser()
+parser.add_argument("video_path", type=str, help="Path to the video to read.")
+args = parser.parse_args()
+send_image(args.video_path)
+

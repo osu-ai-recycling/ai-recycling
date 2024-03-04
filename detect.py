@@ -105,7 +105,6 @@ def run(
         centroid_y_low = float('-inf'),
         centroid_y_high = float('inf'),
         fraction_hyp = 1/8,
-        response_as_bbox = True,
 
         model=None,stride=None,names=None,pt=None
 ):
@@ -130,6 +129,9 @@ def run(
     if debug_save == True:
         save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+
+    
+    
 
     # Dataloader
     bs = 1  # batch_size
@@ -264,12 +266,10 @@ def run(
     if update:
         strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
     
-    if response_as_bbox:
-        return results
-    else:
-        flatten_list(lst)
-        response_msg = ', '.join(flatten_list(lst))
-        return response_msg   
+    flatten_list(lst)
+    response_msg = ', '.join(flatten_list(lst))
+    return results
+    # return response_msg   
 
 def flatten_list(lst):
     flattened = []
