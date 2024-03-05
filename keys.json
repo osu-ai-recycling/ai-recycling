@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "camstream-416114",
+  "private_key_id": "66f1b3a43185cb7c7ab844369dec8b80bd10fd82",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC8g1ptiRQR6BZO\n1JexQM6PurJ5CrifVdPZEU7r/E1WqBVYF/V5dMVlANyo965s99F6NbmgPQtcqEsn\n/bw+M2NkcjqTrVDH5d7H2rrpqA620R5rsN/h25B2Lj6SO8k0j23uQkelReLRHxJi\n84ixBkYxPykYNG0NyFXHBrbtND3IuNh1NjSqCiaNy0V8oy8t+gFSapvL3SpLXhrV\nvNA8Rb+iYvrUnB6HclUheNR1LtK1iFA2m2iK+9zvkO+MJwtJK4b0D4mcQyQ4V+2W\nmIZSJE4p3cIMQeToiejaCfyCSrMlctGeo1XGfG8PhblF+7hdml6AizxBR6u3tIbt\nFNPRcXa7AgMBAAECggEAHvKVetwBLntihiiCirfv8UqeGB75djb5423i/fzamXpY\nnrC4POs9qLo+f4LB4OPCQQTm53Z+EgUS6YrPR4raK1hRY4MVeuuy6i5vdwJ+/+ZO\nzzEnYAXSroQjA5DLFFTjoDTDXE+fz+MA+ruuWhmElnse/PlGWffklRr2FvT3m6bs\nwsoR+NUNrJCVRHuhdnJP8E5bayQCf5GlkN+ddT+hGWR94ZIOAaBlGV5qIWyMvyC7\nTYQKqHOJx20i51XHEGp98HGlpyw+ySBQrpJi8DxSBTB1BOxqmGbfwt5g1NgcJVw5\n+JRsGuN85QQNjJ1mSk8TLCpdhMH7ZdF/GTxT4mARGQKBgQDhfWy+lavUuAfmcbLR\nEYUncYVlbpLm0oCWj5QVLoE8dZpDDluHTqqCj3logLm52yydFFLBRtyGlWvdoMH1\n1SZeQ8PvTSG5Tw6dXbKOu0Gr6QUO9W2wYJPyIpFG99FGKQKfWHcVD3YRwRnQppHX\njJqEnex0smnPtrJhrms8h67qPQKBgQDWBR2aRcm82Ip71Pn7UQXXvwFwSoGkD+gH\ny4tNLRovuo8CxZBVpyzh4CAIDDAK8O1ndofAQwwI7VxJwL1fu8skALSIOtxF7S+q\n/8p/JyqIhROPoIO+x1xYd/xYSWw+ezpRnY8Zx88w91AUe6cB3418TC56rTdGDwaM\not9vG2kMVwKBgHRYef6QTXvRhMoDimdTaefjLBgdCJEutgh5hsezGh2u9Gx7AQD8\ntv/stZEVMj9Sdl+KN/Tf8jNC78gIBWwpkcV7o6JaovbxcrIBwXrh5c2kyuZf/jvO\naSe7bEg43/Maf+7l/3OPabVZdE9zUrbsJmIc9f90eyIgu0Opck1mGPtlAoGAbAzT\nIDMBocz1RYWF26LRP1YYZNfI0cqSC3Vw07rkkJowX2bc8tFe8H6VzVpR2wQ951FJ\nQgDXj54+TKH5Od72tSuB+ZE16jvQKBXR5xYf/CKreITCXswJzERvaydOddEC5XeV\nap+c9Ay4Kk8vRtvVc56GjLrsv/sQBGqqQU7mXysCgYEAgevUjKNujtvp7nDekioi\n4hY/P/GZKd0lobrQivc7N1NkjH+c6zQaFHkx0WRgCYq1aCdTFNwm889r0S3fKIDk\nfdr/2+C+SRxK3swN0TVG0/lQ/GFE6hb/I+Yfeeq10VIurBROUUuiB48RswtHzQ9/\nH87ituhjeEKm8YWp4GZ83TQ=\n-----END PRIVATE KEY-----\n",
+  "client_email": "remote@camstream-416114.iam.gserviceaccount.com",
+  "client_id": "117008019860436842639",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/remote%40camstream-416114.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
