@@ -56,6 +56,9 @@ frame_lock = threading.Lock()  # Lock for thread-safe operations on the current 
 stop_threads = False  # Flag to control the stopping of threads
 frame_counter = 0  # Counter for processed frames
 total_duration = 0
+count_frames = 0
+start_time = 0
+fps = 0
 use_sv = True # Use supervision for counting unique objects
 sv_cons_frames = 4 # Number of consecutive frames to consider an object as detected
 # KMP_DUPLICATE_LIB_OK=TRUE
@@ -85,17 +88,29 @@ def read_frames(cap):
     """
     Continuously read frames from the video capture device.
     """
-    global current_frame, stop_threads
+    global current_frame, stop_threads, count_frames, start_time
     while not stop_threads:
         if keyboard.is_pressed('esc'):  # Listen for ESC key to stop
             stop_threads = True
             break
+        start_time = time.time()
         ret, frame = cap.read()
+        expected_next_frame_time = start_time + 1 / fps
+
+        # Calculate the time remaining until the next frame
+        remaining_time = expected_next_frame_time - time.time()
+
+        # Introduce a delay to match the video frame rate
+        if remaining_time > 0:
+            time.sleep(remaining_time)
+            
         if not ret:
             stop_threads = True
             break
         with frame_lock:
             current_frame = frame
+            count_frames += 1
+
 
 def intersect (b1: list, b2: list) -> bool:
     """
@@ -258,7 +273,6 @@ def detect_and_display():
                     print(e)
                     pass
 
-
                 
             end_time = time.time()
 
@@ -277,13 +291,16 @@ def send_image(video_path):
     """
     Main function to start the video capture and processing threads.
     """
-    global stop_threads, ct
+    global stop_threads, ct, fps, start_time
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print("Error: Could not open video file.")
         return
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    print("FPS: {}".format(fps))
 
     # Start the frame reading and detection threads
+    start_time = time.time()
     thread_read = threading.Thread(target=read_frames, args=(cap,))
     thread_detect = threading.Thread(target=detect_and_display)
     thread_read.start()
@@ -306,6 +323,8 @@ def send_image(video_path):
         print(f'{model.names[class_id]}: {count}')
     stop_threads = True
     cap.release()
+
+    print(count_frames)
     
 # Paths and parameters for video processing
 parser = argparse.ArgumentParser()
