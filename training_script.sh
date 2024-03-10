@@ -10,6 +10,8 @@
 #SBATCH --gres=gpu:1        # consumable resources needed for job
 #SBATCH --mem=10g           # memory needed for job
 
+cd ~/hpc-share/ai-recycling/ai-recycling
+
 # gather basic information, can be useful for troubleshooting
 hostname
 echo $SLURM_JOBID
@@ -18,21 +20,16 @@ showjob $SLURM_JOBID
 # load modules needed for job
 module load slurm
 module restore recycling_module
-# module list
 
 # run my job
 date
 echo "Running ai-recycling from bash shell"
 echo
 
-cd ~/hpc-share/ai-recycling/ai-recycling
-
 # Load/update environment
 source ./.recyclingEnv/bin/activate
-# ERROR: No matching distribution found for gitpython>=3.1.30
 #python3 -m pip install --upgrade pip
 pip install -q -r ./requirements.txt
-# pip install --force-reinstall pillow
 
 # Run training
 file="output_$(date +"%Y_%m_%d_%I_%M_%p").log"

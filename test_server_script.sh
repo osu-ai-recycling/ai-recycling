@@ -11,6 +11,7 @@
 #SBATCH --mem=10g           # memory needed for job
 
 cd ~/hpc-share/ai-recycling/ai-recycling
+
 # gather basic information, can be useful for troubleshooting
 hostname
 echo $SLURM_JOBID
@@ -19,27 +20,11 @@ showjob $SLURM_JOBID
 # load modules needed for job
 module load slurm
 module restore recycling_module
-# virtualenv --no-download ~/$SLURM_TMPDIR/env
-# source ~/$SLURM_TMPDIR/env/bin/activate
-# pip install --no-index --upgrade pip
 
 # Load/update environment
 source ./.recyclingEnv/bin/activate
-
-# Test new env
-# deactivate
-# rm -r testEnv
-# python3 -m venv testEnv
-# source ./testEnv/bin/activate
-
-# ERROR: No matching distribution found for gitpython>=3.1.30
 #python3 -m pip install --upgrade pip
 pip3 install -q -r ./requirements.txt
-
-# Debug
-# module list
-# pip3 list
-# python3 -V
 
 # run my job
 date
