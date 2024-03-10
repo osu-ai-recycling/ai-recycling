@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -J recycling        # name of my job
-#SBATCH -p gpu,dgxh    # name of partition/queue to use
+#SBATCH -p gpu,dgxh         # name of partition/queue to use
 #SBATCH -o recycling.out    # name of output file for batch script
 #SBATCH -e recycling.err    # name of error file for batch script
 #SBATCH -c 1                # number of cores per task
@@ -28,14 +28,15 @@ echo
 cd ~/hpc-share/ai-recycling/ai-recycling
 
 # Load/update environment
-source ./recyclingEnv/bin/activate
+source ./.recyclingEnv/bin/activate
 # ERROR: No matching distribution found for gitpython>=3.1.30
-# pip install -q -r ./requirements.txt
+#python3 -m pip install --upgrade pip
+pip install -q -r ./requirements.txt
 # pip install --force-reinstall pillow
 
 # Run training
 file="output_$(date +"%Y_%m_%d_%I_%M_%p").log"
-python3 train.py > "../$file"
+python3 train.py &> "../$file"
 
 # Copy new files to austin's server
 rsync -a --ignore-existing ~/hpc-share/ai-recycling/ai-recycling/runs/train/* austin:~/outputs

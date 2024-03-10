@@ -16,4 +16,4 @@ utils/loggers/wandb/__pycache__/
 runs/
 
 # Ignore python environment
-recyclingEnv/
+.recyclingEnv/
