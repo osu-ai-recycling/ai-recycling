@@ -33,7 +33,7 @@ echo
 
 # Run test server
 file="output_$(date +"%Y_%m_%d_%I_%M_%p").log"
-python3 test_server.py ../recycle_small_test_slow.mp4 --hpc &> "../$file"
+python3 test_server.py ../recycle_small_test_slow.mp4 --hpc $@ &> "../$file"
 
 # Copy new files to austin's server
 scp "../$file" austin:~/outputs

@@ -17,3 +17,6 @@ runs/
 
 # Ignore python environment
 .recyclingEnv/
+
+# Ignore generated yolov5s.pt
+yolov5s.pt
