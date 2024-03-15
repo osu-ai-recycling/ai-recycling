@@ -23,6 +23,21 @@ import time
 yolov5_path = "../yolov5_farwest"  # Adjust the path as necessary
 sys.path.append(yolov5_path)
 
+model_name = "testingAPI"
+uri = "http://76.144.70.64:5000"
+version = 1
+
+'''
+# This code works, but only seems to pull metadata.
+client = MlflowClient(uri)
+model = client.get_registered_model(model_name)
+'''
+
+# This code times out with 500 errors
+mlflow.set_tracking_uri(uri)
+model = mlflow.pyfunc.load_model(f'models:/{model_name}/{version}')
+#model = mlflow.pytorch.load_model(f'models:/{model_name}/{model_version}')
+
 # Import custom detection functions from the YOLOv5 implementation
 from detect import run, load_model
 
