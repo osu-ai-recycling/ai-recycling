@@ -33,7 +33,7 @@ pip install -q -r ./requirements.txt
 
 # Run training
 file="output_$(date +"%Y_%m_%d_%I_%M_%p").log"
-python3 train.py $@ &> "../$file"
+python3 train.py --noplots $@ &> "../$file"
 
 # Copy new files to austin's server
 rsync -a --ignore-existing ~/hpc-share/ai-recycling/ai-recycling/runs/train/* austin:~/outputs
