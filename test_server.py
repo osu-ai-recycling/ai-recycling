@@ -8,7 +8,7 @@ This script is designed for object detection in video streams using the YOLOv5 m
 The script uses multi-threading to improve performance by simultaneously reading frames andperforming object detection. 
 Additionally, it listens for a keyboard interrupt (ESC key) to gracefully terminate the process.
 """
-
+import torch
 import cv2  # For handling video capture and image operations
 import threading  # For running tasks in parallel
 import os  # For file path operations
@@ -16,12 +16,17 @@ import sys  # For adding the YOLOv5 directory to the system path
 import tempfile  # For creating temporary files for image processing
 import keyboard  # For detecting ESC key press to terminate the script
 import pandas as pd  # For creating and updating Excel files
+import mlflow
 from datetime import datetime  # For timestamping detection events
 import time
+import subprocess
 
 # Add YOLOv5 directory to the system path to import custom functions
 yolov5_path = "../yolov5_farwest"  # Adjust the path as necessary
 sys.path.append(yolov5_path)
+
+
+
 
 model_name = "testingAPI"
 uri = "http://76.144.70.64:5000"
@@ -33,9 +38,21 @@ client = MlflowClient(uri)
 model = client.get_registered_model(model_name)
 '''
 
-# This code times out with 500 errors
+# Set the MLflow tracking URI
 mlflow.set_tracking_uri(uri)
+
+# Load the model
 model = mlflow.pyfunc.load_model(f'models:/{model_name}/{version}')
+
+pytorch_model = torch.load(model, map_location=torch.device('cpu'))
+
+# dependencies = mlflow.pyfunc.get_model_dependencies(f'models:/{model_name}/{version}')
+
+# for dependency in dependencies['pip']:
+#     subprocess.check_call([sys.executable, '-m', 'pip', 'install', dependency])
+
+# mlflow.set_tracking_uri(uri)
+# model = mlflow.pyfunc.load_model(f'models:/{model_name}/{version}')
 #model = mlflow.pytorch.load_model(f'models:/{model_name}/{model_version}')
 
 # Import custom detection functions from the YOLOv5 implementation
