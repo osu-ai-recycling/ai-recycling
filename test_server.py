@@ -4,15 +4,18 @@ Created on Mon Feb  5 09:15:16 2024
 
 @author: user
 
-This script is designed for object detection in video streams using the YOLOv5 model. It captures video frames, and processes them to detect objects. 
+This script is designed for object detection in video streams using the YOLOv5 model. 
+It captures video frames, and processes them to detect objects. 
 The script uses multi-threading to improve performance by simultaneously reading frames andperforming object detection. 
 Additionally, it listens for a keyboard interrupt (ESC key) to gracefully terminate the process.
+Uses supervision module to track objects and perform counting
 """
 
 import cv2  # For handling video capture and image operations
 import threading  # For running tasks in parallel
 import os  # For file path operations
 import sys  # For adding the YOLOv5 directory to the system path
+import tempfile  # For creating temporary files for image processing
 import tempfile  # For creating temporary files for image processing
 import keyboard  # For detecting ESC key press to terminate the script
 import pandas as pd  # For creating and updating Excel files
@@ -23,6 +26,16 @@ from datetime import datetime  # For timestamping detection events
 from math import sqrt
 import argparse
 import time
+import supervision as sv  # For counting unique objects in detection results
+
+
+# Paths and parameters for video processing
+parser = argparse.ArgumentParser()
+parser.add_argument("video_path", type=str, help="Path to the video to read.")
+parser.add_argument('--hpc', dest='is_hpc', action='store_const',
+                    const=True, default=False,
+                    help='Run on HPC config')
+args = parser.parse_args()
 
 # Add YOLOv5 directory to the system path to import custom functions
 yolov5_path = "../yolov5_farwest"  # Adjust the path as necessary
@@ -37,12 +50,14 @@ iou_thres = 0.05  # Intersection Over Union threshold for determining detection 
 conf_thres = 0.65  # Confidence threshold for detecting objects
 augment = False  # Whether to use image augmentation during detection
 debug_save = False  # Whether to save debug images
-device = "CPU"  # Specify the device to use for inference ('CPU' or 'GPU')
+device = "0" if args.is_hpc else "CPU"  # Specify the device to use for inference ('CPU' or 'GPU')
+response_as_bbox = True
 
 # Load the YOLO model with the specified parameters
 model, stride, names, pt = load_model(weights=weights, device=device)
 
 # Initialize variables for frame processing and detection counts
+ct = defaultdict(int)  # Dictionary to count detected objects by category
 ct = defaultdict(int)  # Dictionary to count detected objects by category
 current_frame = None  # Variable to store the current frame for processing
 frame_lock = threading.Lock()  # Lock for thread-safe operations on the current frame
@@ -80,9 +95,10 @@ def read_frames(cap):
     """
     global current_frame, stop_threads
     while not stop_threads:
-        if keyboard.is_pressed('esc'):  # Listen for ESC key to stop
-            stop_threads = True
-            break
+        if not args.is_hpc:
+            if keyboard.is_pressed('esc'):  # Listen for ESC key to stop
+                stop_threads = True
+                break
         ret, frame = cap.read()
         if not ret:
             stop_threads = True
@@ -195,11 +211,17 @@ def detect_and_display():
     seen_ids = []
     consecutive_frames = defaultdict(int)
 
+    global current_frame, stop_threads, frame_counter, ct, total_duration
+    tracker = sv.ByteTrack()            # Bytetrack takes a number of optional arguments, TODO tuning
+    seen_ids = []
+    consecutive_frames = defaultdict(int)
+
     while not stop_threads:
         start_time = time.time()
-        if keyboard.is_pressed('esc'):  # Listen for ESC key to stop
-            stop_threads = True
-            break
+        if not args.is_hpc:
+            if keyboard.is_pressed('esc'):  # Listen for ESC key to stop
+                stop_threads = True
+                break
         
         local_frame = None
         with frame_lock:
@@ -213,7 +235,7 @@ def detect_and_display():
                          conf_thres=conf_thres, augment=augment, model=model, stride=stride,
                          names=names, pt=pt, debug_save=debug_save)
 
-            if not use_sv:
+            if not response_as_bbox:
                 # Every 10 frames
                 if frame_counter % 14 == 0:
                     for detection in output:
@@ -295,9 +317,5 @@ def send_image(video_path):
     stop_threads = True
     cap.release()
     
-# Paths and parameters for video processing
-parser = argparse.ArgumentParser()
-parser.add_argument("video_path", type=str, help="Path to the video to read.")
-args = parser.parse_args()
 send_image(args.video_path)
 
