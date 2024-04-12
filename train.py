@@ -688,7 +688,7 @@ def run(**kwargs):
 if __name__ == '__main__':
     tracking_uri = "http://76.144.70.64:5000"
     if is_server_reachable(tracking_uri):
-        LOGGER.info(f'CONNECTED!')
+        LOGGER.info(f'CONNECTED TO MLFLOW')
         mlflow.set_tracking_uri(tracking_uri)
         with mlflow.start_run():
             opt = parse_opt()
