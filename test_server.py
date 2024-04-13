@@ -25,41 +25,40 @@ import subprocess
 yolov5_path = "../yolov5_farwest"  # Adjust the path as necessary
 sys.path.append(yolov5_path)
 
-
-
-
-model_name = "testingAPI"
+# Setup base URI for MLFlow API
 uri = "http://76.144.70.64:5000"
+mlflow.set_tracking_uri(uri)
+
+download_path = "./output"
+download_model = False
+
+# Test model object
+model_name = "testingAPI"
 version = 1
 
 '''
-# This code works, but only seems to pull metadata.
-client = MlflowClient(uri)
-model = client.get_registered_model(model_name)
+
+Just download the file structure on the server:
+    mlflow.artifacts.download_artifacts(f'models:/{model_name}/{version}', dst_path = download_path)
+
 '''
 
-# Set the MLflow tracking URI
-mlflow.set_tracking_uri(uri)
-
-# Load the model
-model = mlflow.pyfunc.load_model(f'models:/{model_name}/{version}')
-
-pytorch_model = torch.load(model, map_location=torch.device('cpu'))
-
-# dependencies = mlflow.pyfunc.get_model_dependencies(f'models:/{model_name}/{version}')
-
-# for dependency in dependencies['pip']:
-#     subprocess.check_call([sys.executable, '-m', 'pip', 'install', dependency])
-
-# mlflow.set_tracking_uri(uri)
-# model = mlflow.pyfunc.load_model(f'models:/{model_name}/{version}')
-#model = mlflow.pytorch.load_model(f'models:/{model_name}/{model_version}')
+if download_model:
+    model = mlflow.pytorch.load_model(f'models:/{model_name}/{version}', dst_path=download_path, map_location = torch.device('cpu'))
+else:
+    from models.common import DetectMultiBackend
+    model = DetectMultiBackend(weights='./model.pt')
+    # model = torch.hub.load('ultralytics/yolov5', 'custom', './model.pt')
+    # model = torch.load(f'{download_path}/data/model.pth', map_location = torch.device('cpu'))
+    # model = mlflow.pytorch.load_model(download_path, map_location = torch.device('cpu'))
+    
 
 # Import custom detection functions from the YOLOv5 implementation
 from detect import run, load_model
 
 # YOLO model parameters
-weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
+weights = './model.pt'  # Path to model weights file
+# weights = f'{download_path}/model.pt'
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
 augment = True  # Whether to use image augmentation during detection
@@ -67,7 +66,9 @@ debug_save = False  # Whether to save debug images
 device = "CPU"  # Specify the device to use for inference ('CPU' or 'GPU')
 
 # Load the YOLO model with the specified parameters
-model, stride, names, pt = load_model(weights=weights, device=device)
+# model, stride, names, pt = load_model(weights=weights, device=device)
+
+exit()
 
 # Initialize variables for frame processing and detection counts
 ct = {0: 0, 1: 0, 2: 0, 3: 0}  # Dictionary to count detected objects by category
@@ -134,10 +135,14 @@ def detect_and_display():
             
 
             # Run detection on the temporary image file
+            output = model(torch.from_numpy(local_frame))
+
+            '''
             output = run(weights=weights, source=local_frame, iou_thres=iou_thres,
                          conf_thres=conf_thres, augment=augment, model=model, stride=stride,
                          names=names, pt=pt, debug_save=debug_save)
-
+            '''
+                         
             # Every 10 frames
             if frame_counter % 14 == 0:
                 a, unflattened_lst = unflatten(output)
@@ -187,5 +192,5 @@ def send_image(video_path):
     cap.release()
     
 # Paths and parameters for video processing
-video_path = "C:/Users/user/Downloads/recycle_small_test_slow.mp4"
+video_path = "./recycle_small_test_slow.mp4"
 send_image(video_path)
