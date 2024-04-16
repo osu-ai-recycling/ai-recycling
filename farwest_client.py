@@ -2,8 +2,10 @@
 """
 Created on Sat Dec 23 22:18:46 2023
 
-@author: user
+@author: aadi
 """
+
+"sends all frames of a video over socket keeping it in queue, results in delay. Only for some usecases and test purpose"
 
 import socket
 import time
@@ -43,11 +45,11 @@ def count_first_items(matrix,counts):
 
     return counts
 
-def send_image(image_path):
+def send_image(video_path):
     
     global sock
     # Load the image
-    cap = cv2.VideoCapture(image_path)
+    cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print("Error: Could not open video file.")
         exit()
@@ -126,10 +128,10 @@ def send_image(image_path):
     print("  overall time taken is ", dur * 1000, " ms", " and created ",count, " frames. ")
     print ("count",check)
     
-# Replace 'image_path' with the path to your video
-image_path = "C:/Users/user/Downloads/recycle_small_test.mp4" # change back
+# Replace 'video_path' with the path to your video
+video_path = "../recycle_small_test.mp4" # change back
 
-send_image(image_path)
+send_image(video_path)
 
 # Close the socket
 sock.close()
