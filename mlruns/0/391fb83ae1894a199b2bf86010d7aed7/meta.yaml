@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/391fb83ae1894a199b2bf86010d7aed7/artifacts
+end_time: 1713250369132
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 391fb83ae1894a199b2bf86010d7aed7
+run_name: beautiful-calf-41
+run_uuid: 391fb83ae1894a199b2bf86010d7aed7
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1713250170638
+status: 3
+tags: []
+user_id: root

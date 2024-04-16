@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/7281fd829d934c4886ca7e34e5e47d86/artifacts
+end_time: 1713251058099
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 7281fd829d934c4886ca7e34e5e47d86
+run_name: melodic-calf-172
+run_uuid: 7281fd829d934c4886ca7e34e5e47d86
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1713250857598
+status: 3
+tags: []
+user_id: root

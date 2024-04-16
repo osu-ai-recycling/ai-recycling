@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/50c5da50eace4daaa9b6815777b1da44/artifacts
+end_time: 1713250827251
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 50c5da50eace4daaa9b6815777b1da44
+run_name: intrigued-moth-366
+run_uuid: 50c5da50eace4daaa9b6815777b1da44
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1713250626531
+status: 3
+tags: []
+user_id: root

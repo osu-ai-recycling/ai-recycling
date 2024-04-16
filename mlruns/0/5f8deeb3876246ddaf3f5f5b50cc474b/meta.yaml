@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/5f8deeb3876246ddaf3f5f5b50cc474b/artifacts
+end_time: 1713247456660
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 5f8deeb3876246ddaf3f5f5b50cc474b
+run_name: orderly-lamb-870
+run_uuid: 5f8deeb3876246ddaf3f5f5b50cc474b
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1713247257079
+status: 3
+tags: []
+user_id: root

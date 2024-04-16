@@ -1,0 +1,16 @@
+artifact_uri: mlflow-artifacts:/0/3fd07bb8ca9a4bcd90d9db003d4037b2/artifacts
+deleted_time: 1713250205562
+end_time: 1713249957331
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: deleted
+run_id: 3fd07bb8ca9a4bcd90d9db003d4037b2
+run_name: orderly-panda-840
+run_uuid: 3fd07bb8ca9a4bcd90d9db003d4037b2
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1713249944833
+status: 4
+tags: []
+user_id: root

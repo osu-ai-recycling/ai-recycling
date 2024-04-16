@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/77c2363e33dc45a39abf9c1fb985ffa0/artifacts
+end_time: 1713300796063
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 77c2363e33dc45a39abf9c1fb985ffa0
+run_name: puzzled-asp-689
+run_uuid: 77c2363e33dc45a39abf9c1fb985ffa0
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1713300595794
+status: 3
+tags: []
+user_id: root

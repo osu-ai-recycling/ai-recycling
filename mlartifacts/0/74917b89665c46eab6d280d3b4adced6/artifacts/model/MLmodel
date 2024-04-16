@@ -1,0 +1,21 @@
+artifact_path: model
+flavors:
+  python_function:
+    config:
+      device: null
+    data: data
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.pytorch
+    pickle_module_name: mlflow.pytorch.pickle_module
+    python_version: 3.10.12
+  pytorch:
+    code: null
+    model_data: data
+    pytorch_version: 2.2.0+cu121
+mlflow_version: 2.10.2
+model_size_bytes: 14652974
+model_uuid: a8eaa4252a0d4be9b7d13672d44ed921
+run_id: 74917b89665c46eab6d280d3b4adced6
+utc_time_created: '2024-04-16 07:18:38.393618'

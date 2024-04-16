@@ -1,0 +1,15 @@
+artifact_uri: mlflow-artifacts:/0/024115b9c53f43ce99a95e571145fe5e/artifacts
+end_time: 1713300513956
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 024115b9c53f43ce99a95e571145fe5e
+run_name: shivering-boar-789
+run_uuid: 024115b9c53f43ce99a95e571145fe5e
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1713300513370
+status: 4
+tags: []
+user_id: austin

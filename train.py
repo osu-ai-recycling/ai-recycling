@@ -87,6 +87,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
     # Initialize MLFlow tracking
     if is_server_reachable(tracking_uri):
+        mlflow.autolog()
         mlflow_server_available = True
     else:
         mlflow_server_available = False
@@ -477,7 +478,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
         torch.cuda.empty_cache()
         if mlflow_server_available:
-            mlflow.end_run()
+            LOGGER.info(f'Logging training outputs to MLFLOW')
+            mlflow.log_artifacts(save_dir, 'training_outputs')
         return results
 
 
