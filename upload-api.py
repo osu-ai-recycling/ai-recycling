@@ -77,6 +77,17 @@ def serve_image(id):
         return response
     else:
         return 'Image not found', 404
-    
+
+@app.route('/weights', methods=['GET'])
+def compare_models():
+    # Implement model comparison logic here
+    # For now, return a dummy response
+    response = {
+        'best_model': 'model_xyz',
+        'download_link': 'http://example.com/model_xyz',
+        'accuracy': 0.95
+    }
+    return jsonify(response)
+
 if __name__ == '__main__':
     app.run(debug=True)
