@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, make_response
 from pymongo import MongoClient
+import mlflow
 import datetime
 import zipfile
 from bson.objectid import ObjectId
@@ -80,7 +81,15 @@ def serve_image(id):
 
 @app.route('/weights', methods=['GET'])
 def compare_models():
-    # Implement model comparison logic here
+    mlflow.set_tracking_uri("http://76.144.70.64:5000/")
+
+    experiments = mlflow.list_experiments()
+
+    best_model_name = None
+    best_model_uri = None
+    best_model_accuracy = float('-inf')
+
+    
     # For now, return a dummy response
     response = {
         'best_model': 'model_xyz',
