@@ -20,3 +20,7 @@ runs/
 
 # Ignore generated yolov5s.pt
 yolov5s.pt
+
+# Ignore training output
+mlruns/
+mlartifacts/
