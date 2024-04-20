@@ -27,6 +27,8 @@ from math import sqrt
 import argparse
 import time
 import supervision as sv  # For counting unique objects in detection results
+from openvino.tools import mo
+from openvino.runtime import serialize
 
 
 # Paths and parameters for video processing
@@ -45,7 +47,8 @@ sys.path.append(yolov5_path)
 from detect import run, load_model
 
 # YOLO model parameters
-weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
+# weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
+weights = 'DIRECTPATHTO/check_openvino_model' # TODO: Change me to path of the OpenVINO directory, not a specific file!
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
 augment = False  # Whether to use image augmentation during detection
