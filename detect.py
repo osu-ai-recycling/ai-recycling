@@ -105,6 +105,7 @@ def run(
         centroid_y_low = float('-inf'),
         centroid_y_high = float('inf'),
         fraction_hyp = 1/8,
+        response_as_bbox = True,
 
         model=None,stride=None,names=None,pt=None
 ):
@@ -129,9 +130,6 @@ def run(
     if debug_save == True:
         save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
-
-    
-    
 
     # Dataloader
     bs = 1  # batch_size
@@ -171,6 +169,7 @@ def run(
     
         # Process predictions
         for i, det in enumerate(pred):  # per image
+            results = []
             lst = []
             seen += 1
             if  not is_frame and webcam :  # batch_size >= 1
@@ -192,7 +191,7 @@ def run(
             if len(det):        
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_boxes(im.shape[2:], det[:, :4], im0.shape).round()
-                
+
                 # Print results
                 for c in det[:, 5].unique():
                     n = (det[:, 5] == c).sum()  # detections per class
@@ -201,6 +200,9 @@ def run(
                 # Write results
                 count = 0
                 for *xyxy, conf, cls in reversed(det):
+                    
+                    results.append(([box.tolist() for box in xyxy], conf.tolist(), cls.tolist()))
+
                     #count += 1
                     if debug_save:
                         if  save_txt:  # Write to file
@@ -261,11 +263,13 @@ def run(
             LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
     if update:
         strip_optimizer(weights[0])  # update model (to fix SourceChangeWarning)
-       
-
-    flatten_list(lst)
-    response_msg = ', '.join(flatten_list(lst))
-    return response_msg   
+    
+    if response_as_bbox:
+        return results
+    else:
+        flatten_list(lst)
+        response_msg = ', '.join(flatten_list(lst))
+        return response_msg   
 
 def flatten_list(lst):
     flattened = []

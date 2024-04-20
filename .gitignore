@@ -1,0 +1,22 @@
+# Ignore Python bytecode files
+*.pyc
+
+# Ignore __pycache__ directories
+__pycache__/
+
+# Ignore cached files and folders in specific directories
+models/__pycache__/
+utils/__pycache__/
+utils/loggers/__pycache__/
+utils/loggers/clearml/__pycache__/
+utils/loggers/comet/__pycache__/
+utils/loggers/wandb/__pycache__/
+
+# Ignore runs directory
+runs/
+
+# Ignore python environment
+.recyclingEnv/
+
+# Ignore generated yolov5s.pt
+yolov5s.pt
