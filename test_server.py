@@ -21,6 +21,9 @@ from datetime import datetime  # For timestamping detection events
 import time
 import subprocess
 
+# Import custom detection functions from the YOLOv5 implementation
+from detect import run, load_model
+
 # Add YOLOv5 directory to the system path to import custom functions
 yolov5_path = "../yolov5_farwest"  # Adjust the path as necessary
 sys.path.append(yolov5_path)
@@ -29,35 +32,16 @@ sys.path.append(yolov5_path)
 uri = "http://76.144.70.64:5000"
 mlflow.set_tracking_uri(uri)
 
-download_path = "./output"
+download_folder = "./output"
 download_model = False
 
-# Test model object
-model_name = "testingAPI"
-version = 1
-
-'''
-
-Just download the file structure on the server:
-    mlflow.artifacts.download_artifacts(f'models:/{model_name}/{version}', dst_path = download_path)
-
-'''
+RUNID = "a98ba91049814e4b8a0ba9f792431694"
 
 if download_model:
-    model = mlflow.pytorch.load_model(f'models:/{model_name}/{version}', dst_path=download_path, map_location = torch.device('cpu'))
-else:
-    from models.common import DetectMultiBackend
-    model = DetectMultiBackend(weights='./model.pt')
-    # model = torch.hub.load('ultralytics/yolov5', 'custom', './model.pt')
-    # model = torch.load(f'{download_path}/data/model.pth', map_location = torch.device('cpu'))
-    # model = mlflow.pytorch.load_model(download_path, map_location = torch.device('cpu'))
-    
-
-# Import custom detection functions from the YOLOv5 implementation
-from detect import run, load_model
+    mlflow.artifacts.download_artifacts(run_id=RUNID, dst_path = download_folder)
 
 # YOLO model parameters
-weights = './model.pt'  # Path to model weights file
+weights = f'{download_folder}/training_outputs/weights/best.pt'  # Path to model weights file
 # weights = f'{download_path}/model.pt'
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
@@ -66,9 +50,7 @@ debug_save = False  # Whether to save debug images
 device = "CPU"  # Specify the device to use for inference ('CPU' or 'GPU')
 
 # Load the YOLO model with the specified parameters
-# model, stride, names, pt = load_model(weights=weights, device=device)
-
-exit()
+model, stride, names, pt = load_model(weights=weights, device=device)
 
 # Initialize variables for frame processing and detection counts
 ct = {0: 0, 1: 0, 2: 0, 3: 0}  # Dictionary to count detected objects by category
