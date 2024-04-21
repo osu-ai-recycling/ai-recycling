@@ -47,3 +47,8 @@ setuptools>=65.5.1 # Snyk vulnerability fix
 # mss  # screenshots
 # albumentations>=1.0.3
 # pycocotools>=2.0.6  # COCO mAP
+
+# New Requirements ------------------------------------------------------------
+mlflow==2.12.1
+supervision==0.19.0
+keyboard==0.13.5
