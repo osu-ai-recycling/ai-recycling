@@ -84,6 +84,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
     # MLFlow variable
     mlflow_server_available = False
+    highest_mAP = 0.0
 
     # Initialize MLFlow tracking
     if is_server_reachable(tracking_uri):
@@ -398,6 +399,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                                 plots=False,
                                                 callbacks=callbacks,
                                                 compute_loss=compute_loss)
+                mAP_0_95 = results[3] 
+                if mAP_0_95 > highest_mAP:
+                    highest_mAP = mAP_0_95
 
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
@@ -463,6 +467,8 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                         compute_loss=compute_loss)  # val best model with plots
                     if is_coco:
                         callbacks.run('on_fit_epoch_end', list(mloss) + list(results) + lr, epoch, best_fitness, fi)
+                if mlflow_server_available:
+                    mlflow.log_metric("mAP_0.5_0.95", mAP_0_95)
 
         callbacks.run('on_train_end', last, best, epoch, results)
 
@@ -550,7 +556,7 @@ def main(opt, callbacks=Callbacks()):
             opt.exist_ok, opt.resume = opt.resume, False  # pass resume to exist_ok and disable resume
         if opt.name == 'cfg':
             opt.name = Path(opt.cfg).stem  # use model.yaml as name
-        opt.save_dir = str(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
+        opt.save_dir = str(Path(opt.project) / opt.name / datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
     # DDP mode
     device = select_device(opt.device, batch_size=opt.batch_size)
@@ -682,11 +688,17 @@ if __name__ == '__main__':
     if is_server_reachable(tracking_uri):
         LOGGER.info(f'CONNECTED TO MLFLOW')
         mlflow.set_tracking_uri(tracking_uri)
-        with mlflow.start_run():
+        with mlflow.start_run(run_name=datetime.now().strftime('%Y-%m-%d_%H-%M-%S')):
             opt = parse_opt()
             main(opt)
+            # Get the current MLflow run ID
+            run_id = mlflow.active_run().info.run_id
+            # Build the URL with the current date and time
+            url = f"{tracking_uri}/#/experiments/0/runs/{run_id}"
+            LOGGER.info(f"MLflow run URL: {url}")
     else:
         LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
         opt = parse_opt()
         main(opt)
+
 
