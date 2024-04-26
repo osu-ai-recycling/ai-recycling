@@ -127,8 +127,6 @@ class Annotator:
         self.lw = line_width or max(round(sum(im.shape) / 2 * 0.003), 2)  # line width
     
     def box_label(self, box,c, label='', color=(128, 128, 128), txt_color=(255, 255, 255), debug_save=False, obj_cls = None):
-        coord = coordinates_extraction(self, box, obj_cls)
-              
         # Add one xyxy box to image with label
         if self.pil or not is_ascii(label):
             self.draw.rectangle(box, width=self.lw, outline=color)  # box
@@ -143,7 +141,10 @@ class Annotator:
                 )
                 # self.draw.text((box[0], box[1]), label, fill=txt_color, font=self.font, anchor='ls')  # for PIL>8.0
                 self.draw.text((box[0], box[1] - h if outside else box[1]), label, fill=txt_color, font=self.font)
+                return None
+
         else:  # cv2
+            coord = coordinates_extraction(self, box, obj_cls)
             # if debug_save:
             p1, p2 = (int(box[0]), int(box[1])), (int(box[2]), int(box[3]))
             cv2.rectangle(self.im, p1, p2, color, thickness=self.lw, lineType=cv2.LINE_AA)
@@ -162,8 +163,7 @@ class Annotator:
                             txt_color,
                             thickness=tf,
                             lineType=cv2.LINE_AA)
-
-        return coord
+            return coord
     
      
 

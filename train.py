@@ -22,6 +22,8 @@ import random
 import subprocess
 import sys
 import time
+import mlflow  # Import MLFlow for integration
+import requests # Required to test if MLFlow server exists
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -71,8 +73,25 @@ RANK = int(os.getenv('RANK', -1))
 WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 GIT_INFO = check_git_info()
 
+def is_server_reachable(uri):
+    try:
+        response = requests.get(uri, timeout=5)  # wait max 5 seconds
+        return response.status_code == 200
+    except requests.exceptions.RequestException:
+        return False
 
 def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictionary
+
+    # MLFlow variable
+    mlflow_server_available = False
+
+    # Initialize MLFlow tracking
+    if is_server_reachable(tracking_uri):
+        mlflow.autolog()
+        mlflow_server_available = True
+    else:
+        mlflow_server_available = False
+
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = \
         Path(opt.save_dir), opt.epochs, opt.batch_size, opt.weights, opt.single_cls, opt.evolve, opt.data, opt.cfg, \
         opt.resume, opt.noval, opt.nosave, opt.workers, opt.freeze
@@ -89,6 +108,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             hyp = yaml.safe_load(f)  # load hyps dict
     LOGGER.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     opt.hyp = hyp.copy()  # for saving hyps to checkpoints
+
+    # Log parameters and metrics to MLFlow
+    if mlflow_server_available:
+        for key, value in hyp.items():
+            mlflow.log_param(key, value)
 
     # Save run settings
     if not evolve:
@@ -342,6 +366,13 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 pbar.set_description(('%11s' * 2 + '%11.4g' * 5) %
                                      (f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 callbacks.run('on_train_batch_end', model, ni, imgs, targets, paths, list(mloss))
+
+                # Log parameters and metrics to MLFlow
+                if mlflow_server_available:
+                    mlflow.log_metric("box_loss", mloss[0].item())
+                    mlflow.log_metric("obj_loss", mloss[1].item())
+                    mlflow.log_metric("cls_loss", mloss[2].item())
+
                 if callbacks.stop_training:
                     return
             # end batch ------------------------------------------------------------------------------------------------
@@ -436,6 +467,9 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         callbacks.run('on_train_end', last, best, epoch, results)
 
     torch.cuda.empty_cache()
+    if mlflow_server_available:
+        LOGGER.info(f'Logging training outputs to MLFLOW')
+        mlflow.log_artifacts(save_dir, 'training_outputs')
     return results
 
 
@@ -644,5 +678,15 @@ def run(**kwargs):
 
 
 if __name__ == '__main__':
-    opt = parse_opt()
-    main(opt)
+    tracking_uri = "http://76.144.70.64:5000"
+    if is_server_reachable(tracking_uri):
+        LOGGER.info(f'CONNECTED TO MLFLOW')
+        mlflow.set_tracking_uri(tracking_uri)
+        with mlflow.start_run():
+            opt = parse_opt()
+            main(opt)
+    else:
+        LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
+        opt = parse_opt()
+        main(opt)
+
