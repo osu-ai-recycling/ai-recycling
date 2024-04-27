@@ -27,7 +27,9 @@ from math import sqrt
 import argparse
 import time
 import supervision as sv  # For counting unique objects in detection results
-
+from detect import run, load_model
+import mlflow
+import glob
 
 # Paths and parameters for video processing
 parser = argparse.ArgumentParser()
@@ -37,15 +39,24 @@ parser.add_argument('--hpc', dest='is_hpc', action='store_const',
                     help='Run on HPC config')
 args = parser.parse_args()
 
-# Add YOLOv5 directory to the system path to import custom functions
-yolov5_path = "../yolov5_farwest"  # Adjust the path as necessary
-sys.path.append(yolov5_path)
+artifacts_folder = "./artifacts"
+RUNID = os.environ["RUN_ID"]
+BASE_URI = os.environ["MLFLOW_TRACKING_URI"]
 
-# Import custom detection functions from the YOLOv5 implementation
-from detect import run, load_model
+mlflow.set_tracking_uri(BASE_URI)
+download_artifacts = False
+
+if download_artifacts:
+    mlflow.artifacts.download_artifacts(run_id=RUNID, dst_path = artifacts_folder)
+
+weights_path = glob.glob(f"{artifacts_folder}/best.pt")
+
+if weights_path is None:
+    print("Unable to find local weights file.")
+    exit(1)
 
 # YOLO model parameters
-weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
+weights = weights_path  # Path to model weights file
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
 augment = False  # Whether to use image augmentation during detection
