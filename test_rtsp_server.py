@@ -86,23 +86,6 @@ os.environ['KMP_DUPLICATE_LIB_OK']='True'
 #                 counts[int(first_item)] += 1
 #     return counts
 
-def read_frames(cap):
-    """
-    Continuously read frames from the video capture device.
-    """
-    global current_frame, stop_threads
-    while not stop_threads:
-        if not args.is_hpc:
-            if keyboard.is_pressed('esc'):  # Listen for ESC key to stop
-                stop_threads = True
-                break
-        ret, frame = cap.read()
-        if not ret:
-            stop_threads = True
-            break
-        with frame_lock:
-            current_frame = frame
-
 def intersect (b1: list, b2: list) -> bool:
     """
     Takes two bounding boxes and determines if there's an intersection
@@ -237,11 +220,12 @@ def detect_and_display(cap):
             # Third element is the category id
             labels = np.array([d[2] for d in output])
 
-            # Feed this to supervision
-            detections = sv.Detections(xyxy, confidence=confs, class_id=labels)
-            detections = tracker.update_with_detections(detections)
-
             try:
+                # Feed this to supervision
+                detections = sv.Detections(xyxy, confidence=confs, class_id=labels)
+                detections = tracker.update_with_detections(detections)
+
+            
                 for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
                     if tracker_id not in seen_ids:
                         consecutive_frames[tracker_id] += 1
@@ -257,7 +241,7 @@ def detect_and_display(cap):
                     print(f'{model.names[class_id]}: {count}')
                 print()
             
-            except TypeError as e:
+            except (TypeError, ValueError) as e:
                 # Sometimes the detections are empty, and zip doesn't like that
                 print(e)
                 pass
@@ -285,15 +269,6 @@ def send_image(video_path):
         print("Error: Could not open video file.")
         return
 
-    # Start the frame reading and detection threads
-    #thread_read = threading.Thread(target=read_frames, args=(cap,))
-    #thread_detect = threading.Thread(target=detect_and_display)
-    #thread_read.start()
-    #thread_detect.start()
-
-    # Wait for both threads to finish
-    #thread_read.join()
-    #thread_detect.join()
     detect_and_display(cap)
     
     # Print the total duration after all frames are processed
