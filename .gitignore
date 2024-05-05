@@ -15,6 +15,12 @@ utils/loggers/wandb/__pycache__/
 # Ignore runs directory
 runs/
 
+# Ignore mlruns directory
+mlruns/
+
+# Ignore mlartifacts directory
+mlartifacts/
+
 # Ignore python environment
 .recyclingEnv/
 

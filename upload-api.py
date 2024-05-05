@@ -4,6 +4,8 @@ import mlflow
 import datetime
 import zipfile
 from bson.objectid import ObjectId
+import mlflow
+import os
 
 app = Flask(__name__)
 
@@ -78,25 +80,43 @@ def serve_image(id):
         return response
     else:
         return 'Image not found', 404
-
-@app.route('/weights', methods=['GET'])
-def compare_models():
-    mlflow.set_tracking_uri("http://76.144.70.64:5000/")
-
-    experiments = mlflow.list_experiments()
-
-    best_model_name = None
-    best_model_uri = None
-    best_model_accuracy = float('-inf')
-
     
-    # For now, return a dummy response
-    response = {
-        'best_model': 'model_xyz',
-        'download_link': 'http://example.com/model_xyz',
-        'accuracy': 0.95
-    }
-    return jsonify(response)
+mlflow.set_tracking_uri("http://76.144.70.64:5000/")
+client = mlflow.tracking.MlflowClient()
+
+# Specify the experiment ID
+experiment_id = "0"  # Replace "0" with the actual ID of your experiment
+
+current_directory = os.path.dirname(os.path.abspath(__file__))
+
+# Access a folder at the same level as the current directory
+folder_path = os.path.join(current_directory, 'best_run')
+
+app = Flask(__name__)
+
+@app.route('/best_run', methods=['GET'])
+def get_best_run():
+    # Search for runs, ordering by the 'mAP_0.5_0.95' metric in descending order
+    # and limiting the result to the top 1 run
+    best_run = client.search_runs(
+        experiment_id, 
+        order_by=["metrics.mAP_0.5_0.95 DESC"], 
+        max_results=1
+    )[0]
+    
+    # Extract information from the best run
+    best_run_id = best_run.info.run_id
+    mAP_value = best_run.data.metrics['mAP_0.5_0.95']
+    run_datetime = best_run.info.start_time
+    
+    # Write information to 'best_run_info.txt' file
+    with open(os.path.join(current_directory, 'best_run_info.txt'), 'w') as file:
+        file.write(f'Best Run ID: {best_run_id}\n')
+        file.write(f'mAP Value: {mAP_value}\n')
+        file.write(f'Datetime: {run_datetime}\n')
+    
+    return jsonify({'best_run_id': best_run_id})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=8060)
+

@@ -84,6 +84,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
     # MLFlow variable
     mlflow_server_available = False
+    highest_mAP = 0.0
 
     # Initialize MLFlow tracking
     if is_server_reachable(tracking_uri):
@@ -386,23 +387,26 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             lr = [x['lr'] for x in optimizer.param_groups]  # for loggers
             scheduler.step()
 
-            if RANK in {-1, 0}:
-                # mAP
-                callbacks.run('on_train_epoch_end', epoch=epoch)
-                ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names', 'stride', 'class_weights'])
-                final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
-                if not noval or final_epoch:  # Calculate mAP
-                    results, maps, _ = validate.run(data_dict,
-                                                    batch_size=batch_size // WORLD_SIZE * 2,
-                                                    imgsz=imgsz,
-                                                    half=amp,
-                                                    model=ema.ema,
-                                                    single_cls=single_cls,
-                                                    dataloader=val_loader,
-                                                    save_dir=save_dir,
-                                                    plots=False,
-                                                    callbacks=callbacks,
-                                                    compute_loss=compute_loss)
+        if RANK in {-1, 0}:
+            # mAP
+            callbacks.run('on_train_epoch_end', epoch=epoch)
+            ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names', 'stride', 'class_weights'])
+            final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
+            if not noval or final_epoch:  # Calculate mAP
+                results, maps, _ = validate.run(data_dict,
+                                                batch_size=batch_size // WORLD_SIZE * 2,
+                                                imgsz=imgsz,
+                                                half=amp,
+                                                model=ema.ema,
+                                                single_cls=single_cls,
+                                                dataloader=val_loader,
+                                                save_dir=save_dir,
+                                                plots=False,
+                                                callbacks=callbacks,
+                                                compute_loss=compute_loss)
+                mAP_0_95 = results[3] 
+                if mAP_0_95 > highest_mAP:
+                    highest_mAP = mAP_0_95
 
                 # Update best mAP
                 fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
@@ -448,39 +452,41 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             if stop:
                 break  # must break all DDP ranks
 
-            # end epoch ----------------------------------------------------------------------------------------------------
-        # end training -----------------------------------------------------------------------------------------------------
-        if RANK in {-1, 0}:
-            LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
-            for f in last, best:
-                if f.exists():
-                    strip_optimizer(f)  # strip optimizers
-                    if f is best:
-                        LOGGER.info(f'\nValidating {f}...')
-                        results, _, _ = validate.run(
-                            data_dict,
-                            batch_size=batch_size // WORLD_SIZE * 2,
-                            imgsz=imgsz,
-                            model=attempt_load(f, device).half(),
-                            iou_thres=0.65 if is_coco else 0.60,  # best pycocotools at iou 0.65
-                            single_cls=single_cls,
-                            dataloader=val_loader,
-                            save_dir=save_dir,
-                            save_json=is_coco,
-                            verbose=True,
-                            plots=plots,
-                            callbacks=callbacks,
-                            compute_loss=compute_loss)  # val best model with plots
-                        if is_coco:
-                            callbacks.run('on_fit_epoch_end', list(mloss) + list(results) + lr, epoch, best_fitness, fi)
+        # end epoch ----------------------------------------------------------------------------------------------------
+    # end training -----------------------------------------------------------------------------------------------------
+    if RANK in {-1, 0}:
+        LOGGER.info(f'\n{epoch - start_epoch + 1} epochs completed in {(time.time() - t0) / 3600:.3f} hours.')
+        for f in last, best:
+            if f.exists():
+                strip_optimizer(f)  # strip optimizers
+                if f is best:
+                    LOGGER.info(f'\nValidating {f}...')
+                    results, _, _ = validate.run(
+                        data_dict,
+                        batch_size=batch_size // WORLD_SIZE * 2,
+                        imgsz=imgsz,
+                        model=attempt_load(f, device).half(),
+                        iou_thres=0.65 if is_coco else 0.60,  # best pycocotools at iou 0.65
+                        single_cls=single_cls,
+                        dataloader=val_loader,
+                        save_dir=save_dir,
+                        save_json=is_coco,
+                        verbose=True,
+                        plots=plots,
+                        callbacks=callbacks,
+                        compute_loss=compute_loss)  # val best model with plots
+                    if is_coco:
+                        callbacks.run('on_fit_epoch_end', list(mloss) + list(results) + lr, epoch, best_fitness, fi)
+                if mlflow_server_available:
+                    mlflow.log_metric("mAP_0.5_0.95", mAP_0_95)
 
             callbacks.run('on_train_end', last, best, epoch, results)
 
-        torch.cuda.empty_cache()
-        if mlflow_server_available:
-            LOGGER.info(f'Logging training outputs to MLFLOW')
-            mlflow.log_artifacts(save_dir, 'training_outputs')
-        return results
+    torch.cuda.empty_cache()
+    if mlflow_server_available:
+        LOGGER.info(f'Logging training outputs to MLFLOW')
+        mlflow.log_artifacts(save_dir, 'training_outputs')
+    return results
 
 
 def parse_opt(known=False):
@@ -560,7 +566,7 @@ def main(opt, callbacks=Callbacks()):
             opt.exist_ok, opt.resume = opt.resume, False  # pass resume to exist_ok and disable resume
         if opt.name == 'cfg':
             opt.name = Path(opt.cfg).stem  # use model.yaml as name
-        opt.save_dir = str(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
+        opt.save_dir = str(Path(opt.project) / opt.name / datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
     # DDP mode
     device = select_device(opt.device, batch_size=opt.batch_size)
@@ -692,10 +698,17 @@ if __name__ == '__main__':
     if is_server_reachable(tracking_uri):
         LOGGER.info(f'CONNECTED TO MLFLOW')
         mlflow.set_tracking_uri(tracking_uri)
-        with mlflow.start_run():
+        with mlflow.start_run(run_name=datetime.now().strftime('%Y-%m-%d_%H-%M-%S')):
             opt = parse_opt()
             main(opt)
+            # Get the current MLflow run ID
+            run_id = mlflow.active_run().info.run_id
+            # Build the URL with the current date and time
+            url = f"{tracking_uri}/#/experiments/0/runs/{run_id}"
+            LOGGER.info(f"MLflow run URL: {url}")
     else:
         LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
         opt = parse_opt()
         main(opt)
+
+
