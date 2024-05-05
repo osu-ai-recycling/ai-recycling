@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, make_response
 from pymongo import MongoClient
 import mlflow
-import datetime
+from datetime import datetime
 import zipfile
 from bson.objectid import ObjectId
 import mlflow
@@ -92,31 +92,108 @@ current_directory = os.path.dirname(os.path.abspath(__file__))
 # Access a folder at the same level as the current directory
 folder_path = os.path.join(current_directory, 'best_run')
 
-app = Flask(__name__)
+# Max-heap to store runs with their mAP values
+max_heap = []
+
+# Function to read the best model information from the text file
+def read_best_model_info():
+    best_model_info = {}
+    try:
+        with open(os.path.join(folder_path, 'best_run_info.txt'), 'r') as file:
+            lines = file.readlines()
+            if lines:
+                best_model_info['run_id'] = lines[0].split(': ')[1].strip()
+                best_model_info['mAP'] = float(lines[1].split(': ')[1].strip())
+                best_model_info['datetime'] = lines[2].split(': ')[1].strip()
+    except Exception as e:
+        print(f"Error reading from file: {e}")
+    return best_model_info
+
+# Function to update the best model information in the text file
+def update_best_model_info(run_id, mAP, run_datetime):
+    try:
+        with open(os.path.join(folder_path, 'best_run_info.txt'), 'w') as file:
+            file.write(f'Best Run ID: {run_id}\n')
+            file.write(f'mAP Value: {mAP}\n')
+            file.write(f'Datetime: {run_datetime}\n')
+    except Exception as e:
+        print(f"Error writing to file: {e}")
+
+# Function to maintain the max-heap property after inserting a new run
+def heapify_up(heap, index):
+    if index == 0:
+        return
+    parent_index = (index - 1) // 2
+    if heap[index]['mAP'] > heap[parent_index]['mAP']:
+        heap[index], heap[parent_index] = heap[parent_index], heap[index]
+        heapify_up(heap, parent_index)
+
+# Function to maintain the max-heap property after removing the maximum element
+def heapify_down(heap, index):
+    left_child_index = 2 * index + 1
+    right_child_index = 2 * index + 2
+    largest_index = index
+    if left_child_index < len(heap) and heap[left_child_index]['mAP'] > heap[largest_index]['mAP']:
+        largest_index = left_child_index
+    if right_child_index < len(heap) and heap[right_child_index]['mAP'] > heap[largest_index]['mAP']:
+        largest_index = right_child_index
+    if largest_index != index:
+        heap[index], heap[largest_index] = heap[largest_index], heap[index]
+        heapify_down(heap, largest_index)
+
+# Function to add a new run to the max-heap
+def add_to_heap(run_id, mAP):
+    global max_heap
+    max_heap.append({'run_id': run_id, 'mAP': mAP})
+    heapify_up(max_heap, len(max_heap) - 1)
+
+# Function to remove the run with the maximum mAP value from the max-heap
+def remove_max_from_heap():
+    global max_heap
+    if not max_heap:
+        return None
+    max_run = max_heap[0]
+    max_heap[0] = max_heap[-1]
+    max_heap.pop()
+    heapify_down(max_heap, 0)
+    return max_run
+
+# Function to find the model with the highest mAP value
+def find_best_run(runs):
+    global max_heap
+    for run in runs:
+        run_id = run.info.run_id
+        mAP = run.data.metrics.get('mAP_0.5_0.95', None)
+        if mAP is not None:
+            add_to_heap(run_id, mAP)
+
+    best_run = remove_max_from_heap()
+    return best_run['run_id'], best_run['mAP']
+
 
 @app.route('/best_run', methods=['GET'])
 def get_best_run():
-    # Search for runs, ordering by the 'mAP_0.5_0.95' metric in descending order
-    # and limiting the result to the top 1 run
-    best_run = client.search_runs(
-        experiment_id, 
-        order_by=["metrics.mAP_0.5_0.95 DESC"], 
-        max_results=1
-    )[0]
+    # Read the best model information from the text file
+    best_model_info = read_best_model_info()
     
-    # Extract information from the best run
-    best_run_id = best_run.info.run_id
-    mAP_value = best_run.data.metrics['mAP_0.5_0.95']
-    run_datetime = best_run.info.start_time
-    
-    # Write information to 'best_run_info.txt' file
-    with open(os.path.join(current_directory, 'best_run_info.txt'), 'w') as file:
-        file.write(f'Best Run ID: {best_run_id}\n')
-        file.write(f'mAP Value: {mAP_value}\n')
-        file.write(f'Datetime: {run_datetime}\n')
-    
-    return jsonify({'best_run_id': best_run_id})
+    # Retrieve all runs for the experiment
+    runs = client.search_runs(
+        experiment_id,
+        filter_string="",
+        order_by=["metrics.mAP_0.5_0.95 DESC"]
+    )
+
+    # Find the model with the highest mAP value
+    best_run_id, best_mAP = find_best_run(runs)
+
+    # Compare with the saved best mAP
+    if best_mAP > best_model_info['mAP']:
+        update_best_model_info(best_run_id, best_mAP, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        return jsonify({'best_run_id': best_run_id})
+
+    # Return the ID of the current best model
+    return jsonify({'best_run_id': best_model_info['run_id']})
+
 
 if __name__ == '__main__':
     app.run(debug=True, port=8060)
-
