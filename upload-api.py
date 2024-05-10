@@ -4,8 +4,11 @@ import mlflow
 from datetime import datetime
 import zipfile
 from bson.objectid import ObjectId
-import mlflow
 import os
+import shutil
+import paramiko
+import io
+from random import shuffle
 
 app = Flask(__name__)
 
@@ -14,14 +17,6 @@ client = MongoClient("mongodb+srv://joonyuan:Bokuben69!@airecycling.kspjt.mongod
 db = client['AiRecycling']
 collection = db['images']  #This accesses the 'images' collection within the 'AiRecycling' database, collection holds the reference to our images collection. this will let us perform actions like insert,update etc...
 
-@app.route('/upload', methods=['POST'])
-def upload_image():
-    image = request.files['image']  #Assume JPEG image file
-    #Use current datetime as a suffix for the image filename
-    filename = f"{datetime.datetime.now().isoformat()}-{image.filename}"
-    image_id = collection.insert_one({'filename': filename, 'data': image.read()}).inserted_id
-    return jsonify({'id': str(image_id), 'status': 'uploaded'}), 200
-
 @app.route('/upload-zip', methods=['POST'])
 def upload_zip():
     if 'image-zip' not in request.files:
@@ -29,58 +24,84 @@ def upload_zip():
     file = request.files['image-zip']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
-    
+
     # Checking if file is a zip file
     if not zipfile.is_zipfile(file):
         return jsonify({'error': 'Uploaded file is not a zip'}), 400
-
-    # Extract zip file and store each image with datetime suffix in filename
-    with zipfile.ZipFile(file, 'r') as zip_ref:
-        for file_info in zip_ref.infolist():
-            if file_info.filename.lower().endswith('.jpg'):
-                image_data = zip_ref.read(file_info.filename)
-                datetime_suffix = datetime.datetime.now().isoformat()
-                new_filename = f"{datetime_suffix}-{file_info.filename}"
-                document = {
-                    'filename': new_filename,
-                    'data': image_data  # Storing raw bytes
-                }
-                collection.insert_one(document)
-
-    return jsonify({'status': 'All images uploaded successfully'}), 200
-@app.route('/update/<id>', methods=['PUT'])
-def update_image(id):
-    image = request.files['image']
-    result = collection.update_one({'_id': id}, {'$set': {'data': image.read()}})
-    if result.modified_count:
-        return jsonify({'id': id, 'status': 'updated'}), 200
-    else:
-        return jsonify({'error': 'Image not found'}), 404
-
-@app.route('/images/<id>', methods=['GET'])
-def get_image(id):
-    image = collection.find_one({'_id': id})
-    if image:
-        return image['data'], 200
-    else:
-        return jsonify({'error': 'Image not found'}), 404
-
-@app.route('/image/<id>')
-def serve_image(id):
-    try:
-        # Convert id from string to ObjectId
-        object_id = ObjectId(id)
-    except Exception as e:
-        return 'Invalid ID format', 400
-
-    image_document = collection.find_one({'_id': object_id})
-    if image_document:
-        response = make_response(image_document['data'])
-        response.headers.set('Content-Type', 'image/jpeg')
-        return response
-    else:
-        return 'Image not found', 404
     
+    # Read the ZIP file as binary data
+    file.seek(0)  # Reset the file cursor to the beginning
+    zip_data = file.read()
+
+    # Store the entire zip file with datetime suffix in filename
+    datetime_suffix = datetime.datetime.now().isoformat()
+    new_filename = f"{datetime_suffix}-{file.filename}"
+    document = {
+        'filename': new_filename,
+        'data': zip_data  # Storing the entire ZIP file as binary data
+    }
+    collection.insert_one(document)
+
+    return jsonify({'status': 'ZIP file uploaded successfully'}), 200
+    
+@app.route('/send-to-hpc', methods=['POST'])
+def send_to_hpc():
+    zip_id = request.json.get('zip_id')
+    if not zip_id:
+        return jsonify({'error': 'No ZIP file ID provided'}), 400
+    
+    # Retrieve the ZIP file from MongoDB
+    zip_file = collection.find_one({'_id': ObjectId(zip_id)})
+    if not zip_file:
+        return jsonify({'error': 'ZIP file not found'}), 404
+
+    # Extract the ZIP file
+    zip_data = io.BytesIO(zip_file['data'])
+    source_dir = 'temp'  # Directory to extract the ZIP files
+    target_dir = 'ai-data'  # Directory to organize files into train/test/validation
+    with zipfile.ZipFile(zip_data, 'r') as zip_ref:
+        zip_ref.extractall(source_dir)
+
+    # Organize files into the required directory structure
+    organize_files(source_dir, target_dir)
+
+    # Send organized files to HPC
+    success = send_files_to_hpc(target_dir)
+
+    # Cleanup temporary directories
+    shutil.rmtree(source_dir)
+    shutil.rmtree(target_dir)
+
+    if success:
+        return jsonify({'status': 'Data sent to HPC successfully'}), 200
+    else:
+        return jsonify({'error': 'Failed to send data to HPC'}), 500
+
+def send_files_to_hpc(target_dir):
+    try:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect('76.144.70.64', username='austin', password='M18RED', port=22)
+        sftp = ssh.open_sftp()
+        
+        # Walk through the directory and upload files
+        for dirpath, dirnames, filenames in os.walk(target_dir):
+            remote_path = dirpath.replace(target_dir, '/remote/directory/ai-data')
+            try:
+                sftp.mkdir(remote_path)
+            except IOError:
+                pass  # Remote directory already exists
+            for filename in filenames:
+                sftp.put(os.path.join(dirpath, filename), os.path.join(remote_path, filename))
+        
+        sftp.close()
+        ssh.close()
+        return True
+    except Exception as e:
+        print(f"SSH connection error: {e}")
+        return False
+    
+
 mlflow.set_tracking_uri("http://76.144.70.64:5000/")
 client = mlflow.tracking.MlflowClient()
 
@@ -193,6 +214,43 @@ def get_best_run():
 
     # Return the ID of the current best model
     return jsonify({'best_run_id': best_model_info['run_id']})
+
+
+def organize_files(source_dir, target_dir):
+    image_files = [f for f in os.listdir(source_dir) if f.endswith('.jpg')]
+    label_files = [f for f in os.listdir(source_dir) if f.endswith('.txt')]
+
+    # Randomly shuffle the list of images to ensure random distribution
+    shuffled_images = list(image_files)
+    shuffle(shuffled_images)
+
+    # Calculate the indices for splitting
+    total_images = len(shuffled_images)
+    train_end = int(0.7 * total_images)  # 70% for training
+    test_end = train_end + int(0.15 * total_images)  # 15% for testing
+
+    # Create train, test, validation folders for images and labels
+    for phase in ['train', 'test', 'validation']:
+        os.makedirs(os.path.join(target_dir, phase, 'images'), exist_ok=True)
+        os.makedirs(os.path.join(target_dir, phase, 'labels'), exist_ok=True)
+
+    # Distribute files
+    for idx, filename in enumerate(shuffled_images):
+        if idx < train_end:
+            phase = 'train'
+        elif idx < test_end:
+            phase = 'test'
+        else:
+            phase = 'validation'
+        
+        # Get the basename without extension to find corresponding label file
+        basename = os.path.splitext(filename)[0]
+        label_file = basename + '.txt'
+
+        # Move image and label files to their respective directories
+        shutil.move(os.path.join(source_dir, filename), os.path.join(target_dir, phase, 'images', filename))
+        if label_file in label_files:
+            shutil.move(os.path.join(source_dir, label_file), os.path.join(target_dir, phase, 'labels', label_file))
 
 
 if __name__ == '__main__':
