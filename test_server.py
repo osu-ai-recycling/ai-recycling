@@ -16,7 +16,6 @@ import threading  # For running tasks in parallel
 import os  # For file path operations
 import sys  # For adding the YOLOv5 directory to the system path
 import tempfile  # For creating temporary files for image processing
-import tempfile  # For creating temporary files for image processing
 import keyboard  # For detecting ESC key press to terminate the script
 import pandas as pd  # For creating and updating Excel files
 from collections import defaultdict  # For creating a dictionary with default values
@@ -38,20 +37,39 @@ parser.add_argument('--hpc', dest='is_hpc', action='store_const',
 args = parser.parse_args()
 
 # Add YOLOv5 directory to the system path to import custom functions
-yolov5_path = "../yolov5_farwest"  # Adjust the path as necessary
+yolov5_path = "./"  # Adjust the path as necessary
 sys.path.append(yolov5_path)
 
 # Import custom detection functions from the YOLOv5 implementation
 from detect import run, load_model
 
 # YOLO model parameters
-weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
+use_openvino = True  # Whether to use OpenVINO for inference
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
 augment = False  # Whether to use image augmentation during detection
 debug_save = False  # Whether to save debug images
 device = "0" if args.is_hpc else "CPU"  # Specify the device to use for inference ('CPU' or 'GPU')
 response_as_bbox = True
+if use_openvino:
+    print("Exporting model to OpenVINO format...")
+    weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
+    command = f"python {yolov5_path}/export.py --weights {weights} --batch 1 --device CPU --iou {iou_thres} --conf {conf_thres} --include openvino"
+    os.system(command) # This is a blocking call
+    weights = f'{yolov5_path}/check_openvino_model'
+
+    os.remove(f'{yolov5_path}/check.onnx') # Artifact of the openvino conversion process
+
+    print("")
+    print("###")
+    print("###")
+    print("Model exported to OpenVINO format.")
+    print("Beginning inference with OpenVINO...")
+    print("###")
+    print("###")
+    print("")
+else:
+    weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
 
 # Load the YOLO model with the specified parameters
 model, stride, names, pt = load_model(weights=weights, device=device)
@@ -66,28 +84,8 @@ frame_counter = 0  # Counter for processed frames
 total_duration = 0
 use_sv = True # Use supervision for counting unique objects
 sv_cons_frames = 4 # Number of consecutive frames to consider an object as detected
-# KMP_DUPLICATE_LIB_OK=TRUE
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-# def unflatten(input_string):
-#     """
-#     Reformat a flat input string from detection output into a structured format.
-#     """
-#     values = input_string.split(',')
-#     first_value = values[0]
-#     grouped_values = [values[i:i+3] for i in range(1, len(values), 3)]
-#     return first_value, grouped_values
-
-# def count_first_items(matrix, counts):
-#     """
-#     Count occurrences of the first item in each inner list of a 2D list (matrix).
-#     """
-#     for inner_list in matrix:
-#         if inner_list:
-#             first_item = inner_list[0]
-#             if int(first_item) in counts:
-#                 counts[int(first_item)] += 1
-#     return counts
 
 def read_frames(cap):
     """
@@ -211,11 +209,6 @@ def detect_and_display():
     seen_ids = []
     consecutive_frames = defaultdict(int)
 
-    global current_frame, stop_threads, frame_counter, ct, total_duration
-    tracker = sv.ByteTrack()            # Bytetrack takes a number of optional arguments, TODO tuning
-    seen_ids = []
-    consecutive_frames = defaultdict(int)
-
     while not stop_threads:
         start_time = time.time()
         if not args.is_hpc:
@@ -317,5 +310,7 @@ def send_image(video_path):
     stop_threads = True
     cap.release()
     
-send_image(args.video_path)
+
+if __name__ == "__main__":
+    send_image(args.video_path)
 
