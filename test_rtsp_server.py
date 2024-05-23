@@ -65,6 +65,7 @@ use_sv = True # Use supervision for counting unique objects
 sv_cons_frames = 4 # Number of consecutive frames to consider an object as detected
 # KMP_DUPLICATE_LIB_OK=TRUE
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+count_read = 0
 
 # def unflatten(input_string):
 #     """
@@ -205,7 +206,16 @@ def detect_and_display(cap):
         output = run(weights=weights, source=local_frame, iou_thres=iou_thres,
                         conf_thres=conf_thres, augment=augment, model=model, stride=stride,
                         names=names, pt=pt, debug_save=debug_save)
-        print(output)
+        color = (0, 255, 0)
+        for detection in output:
+            box, conf, clas = detection
+            cls_name = model.names[clas]
+            cv2.rectangle(local_frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, 2)
+            cv2.putText(local_frame, f'{cls_name}: {conf:.2f}', (int(box[0]), int(box[1]) - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                
+        cv2.imshow('Object Detection', local_frame)
+        cv2.waitKey(1) 
         
         if not response_as_bbox:
             # Every 10 frames
@@ -225,7 +235,6 @@ def detect_and_display(cap):
                 detections = sv.Detections(xyxy, confidence=confs, class_id=labels)
                 detections = tracker.update_with_detections(detections)
 
-            
                 for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
                     if tracker_id not in seen_ids:
                         consecutive_frames[tracker_id] += 1
@@ -237,15 +246,22 @@ def detect_and_display(cap):
                     if tracker_id not in detections.tracker_id:
                         consecutive_frames.pop(tracker_id, None)
                 count = pd.DataFrame(ct.items(), columns=['Category', 'Count'])
-                for class_id, count in dict(ct).items():
+
+                for idx, (class_id, count) in enumerate(dict(ct).items()):
                     print(f'{model.names[class_id]}: {count}')
+                    cv2.putText(img=local_frame, text=f'{model.names[class_id]}: {count}', org=(200, (class_id+1)*150), fontFace=2, fontScale=3, color=(255,255,0), thickness=3)
+                
+                
+                
                 print()
             
             except (TypeError, ValueError) as e:
                 # Sometimes the detections are empty, and zip doesn't like that
                 print(e)
                 pass
-
+        
+        cv2.imshow('Object Detection', local_frame)
+        cv2.waitKey(5) 
         end_time = time.time()
 
         # Calculate and accumulate the duration
@@ -287,3 +303,4 @@ def send_image(video_path):
     
 send_image('udp://@127.0.0.1:1234')
 # 'udp://@127.0.0.1:1234'
+# rtsp://192.168.0.101:8090/stream
