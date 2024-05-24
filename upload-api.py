@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, make_response
 from pymongo import MongoClient
-import datetime
+import mlflow
+from datetime import datetime
 import zipfile
 from bson.objectid import ObjectId
 import os
@@ -8,6 +9,9 @@ import shutil
 import paramiko
 import io
 from random import shuffle
+
+
+
 
 app = Flask(__name__)
 
@@ -100,6 +104,32 @@ def send_files_to_hpc(target_dir):
         print(f"SSH connection error: {e}")
         return False
     
+
+
+mlflow.set_tracking_uri("http://ec2-18-220-114-91.us-east-2.compute.amazonaws.com:5000/")
+
+# Create an instance of MlflowClient
+client = mlflow.tracking.MlflowClient()
+
+# Specify the experiment ID
+experiment_id = "0"  # Replace "0" with the actual ID of your experiment
+
+@app.route('/best_run', methods=['GET'])
+def get_best_run():
+    # Search for runs, ordering by the 'mAP_0.5_0.95' metric in descending order
+    # and limiting the result to the top 1 run
+    best_run = client.search_runs(
+        experiment_id, 
+        order_by=["metrics.mAP_0.5_0.95 DESC"], 
+        max_results=1
+    )[0]
+    
+    # Extract and return the ID of the best run
+    best_run_id = best_run.info.run_id
+    return jsonify({'best_run_id': best_run_id})
+
+    
+
 def organize_files(source_dir, target_dir):
     image_files = [f for f in os.listdir(source_dir) if f.endswith('.jpg')]
     label_files = [f for f in os.listdir(source_dir) if f.endswith('.txt')]
@@ -135,6 +165,7 @@ def organize_files(source_dir, target_dir):
         shutil.move(os.path.join(source_dir, filename), os.path.join(target_dir, phase, 'images', filename))
         if label_file in label_files:
             shutil.move(os.path.join(source_dir, label_file), os.path.join(target_dir, phase, 'labels', label_file))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
