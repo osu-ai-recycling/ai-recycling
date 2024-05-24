@@ -88,7 +88,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
 
     # Initialize MLFlow tracking
     if is_server_reachable(tracking_uri):
-        mlflow.autolog()
         mlflow_server_available = True
     else:
         mlflow_server_available = False
@@ -109,11 +108,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
             hyp = yaml.safe_load(f)  # load hyps dict
     LOGGER.info(colorstr('hyperparameters: ') + ', '.join(f'{k}={v}' for k, v in hyp.items()))
     opt.hyp = hyp.copy()  # for saving hyps to checkpoints
-
-    # Log parameters and metrics to MLFlow
-    if mlflow_server_available:
-        for key, value in hyp.items():
-            mlflow.log_param(key, value)
 
     # Save run settings
     if not evolve:
@@ -373,12 +367,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                         (f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 callbacks.run('on_train_batch_end', model, ni, imgs, targets, paths, list(mloss))
 
-                # Log parameters and metrics to MLFlow
-                if mlflow_server_available:
-                    mlflow.log_metric("box_loss", mloss[0].item())
-                    mlflow.log_metric("obj_loss", mloss[1].item())
-                    mlflow.log_metric("cls_loss", mloss[2].item())
-
                 if callbacks.stop_training:
                     return
                 # end batch ------------------------------------------------------------------------------------------------
@@ -435,10 +423,6 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                         torch.save(ckpt, best)
                     if opt.save_period > 0 and epoch % opt.save_period == 0:
                         torch.save(ckpt, w / f'epoch{epoch}.pt')
-
-                    # Log parameters and metrics to MLFlow
-                    if mlflow_server_available:
-                        mlflow.pytorch.log_model(ckpt['model'], "model")
 
                     del ckpt
                     callbacks.run('on_model_save', last, epoch, final_epoch, best_fitness, fi)
@@ -694,7 +678,7 @@ def run(**kwargs):
 
 
 if __name__ == '__main__':
-    tracking_uri = "http://76.144.70.64:5000"
+    tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
     if is_server_reachable(tracking_uri):
         LOGGER.info(f'CONNECTED TO MLFLOW')
         mlflow.set_tracking_uri(tracking_uri)
