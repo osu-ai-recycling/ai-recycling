@@ -49,7 +49,7 @@ def check_new_data():
 while True:
     if check_training_time() and check_new_data():
         latest_data = collection_latest
-        os.system("python train.py --batch-size 8 --epochs 1")
+        os.system("./hpc_run.sh train --data ../far_west_7_set/data.yaml --weights yolov5s.pt --batch-size 32 --seed 42 --epochs 3")
     else:
         time.sleep(60)
     
