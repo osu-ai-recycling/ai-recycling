@@ -1,20 +1,30 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify
 from pymongo import MongoClient
 import datetime
 import zipfile
 from bson.objectid import ObjectId
 import os
-import shutil
-import paramiko
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 import io
 from random import shuffle
+import uuid
 
 app = Flask(__name__)
 
 # Connect to MongoDB
 client = MongoClient("mongodb+srv://joonyuan:Bokuben69!@airecycling.kspjt.mongodb.net/")
 db = client['AiRecycling']
-collection = db['images']  #This accesses the 'images' collection within the 'AiRecycling' database, collection holds the reference to our images collection. this will let us perform actions like insert,update etc...
+collection = db['images']  # This accesses the 'images' collection within the 'AiRecycling' database
+
+# Initialize the S3 client
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id='AKIARJ6WUXNBLV3AJOHU',
+    aws_secret_access_key='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'
+)
+bucket_name = 'test-api-bucket123'
+
 
 @app.route('/upload-zip', methods=['POST'])
 def upload_zip():
@@ -27,7 +37,7 @@ def upload_zip():
     # Checking if file is a zip file
     if not zipfile.is_zipfile(file):
         return jsonify({'error': 'Uploaded file is not a zip'}), 400
-    
+
     # Read the ZIP file as binary data
     file.seek(0)  # Reset the file cursor to the beginning
     zip_data = file.read()
@@ -42,99 +52,79 @@ def upload_zip():
     collection.insert_one(document)
 
     return jsonify({'status': 'ZIP file uploaded successfully'}), 200
-    
-@app.route('/send-to-hpc', methods=['POST'])
-def send_to_hpc():
-    zip_id = request.json.get('zip_id')
-    if not zip_id:
-        return jsonify({'error': 'No ZIP file ID provided'}), 400
-    
-    # Retrieve the ZIP file from MongoDB
-    zip_file = collection.find_one({'_id': ObjectId(zip_id)})
-    if not zip_file:
-        return jsonify({'error': 'ZIP file not found'}), 404
 
-    # Extract the ZIP file
-    zip_data = io.BytesIO(zip_file['data'])
-    source_dir = 'temp'  # Directory to extract the ZIP files
-    target_dir = 'ai-data'  # Directory to organize files into train/test/validation
-    with zipfile.ZipFile(zip_data, 'r') as zip_ref:
-        zip_ref.extractall(source_dir)
 
-    # Organize files into the required directory structure
-    organize_files(source_dir, target_dir)
+def extract_zip(zip_data):
+    with zipfile.ZipFile(io.BytesIO(zip_data)) as zip_file:
+        zip_file.extractall('/tmp/hpc_data_joon')
+        for file_name in zip_file.namelist():
+            yield file_name
 
-    # Send organized files to HPC
-    success = send_files_to_hpc(target_dir)
 
-    # Cleanup temporary directories
-    shutil.rmtree(source_dir)
-    shutil.rmtree(target_dir)
-
-    if success:
-        return jsonify({'status': 'Data sent to HPC successfully'}), 200
-    else:
-        return jsonify({'error': 'Failed to send data to HPC'}), 500
-
-def send_files_to_hpc(target_dir):
+def upload_to_s3(file_path, s3_path):
     try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect('76.144.70.64', username='austin', password='M18RED', port=22)
-        sftp = ssh.open_sftp()
-        
-        # Walk through the directory and upload files
-        for dirpath, dirnames, filenames in os.walk(target_dir):
-            remote_path = dirpath.replace(target_dir, '/remote/directory/ai-data')
-            try:
-                sftp.mkdir(remote_path)
-            except IOError:
-                pass  # Remote directory already exists
-            for filename in filenames:
-                sftp.put(os.path.join(dirpath, filename), os.path.join(remote_path, filename))
-        
-        sftp.close()
-        ssh.close()
-        return True
+        s3_client.upload_file(file_path, bucket_name, s3_path)
+        print(f"Uploaded {file_path} to s3://{bucket_name}/{s3_path}")
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        print(f"Credentials error: {str(e)}")
     except Exception as e:
-        print(f"SSH connection error: {e}")
-        return False
+        print(f"Error uploading file: {str(e)}")
+
+
+def create_s3_directories():
+    directories = [
+        'test/images/', 'test/labels/',
+        'training/images/', 'training/labels/',
+        'validation/images/', 'validation/labels/'
+    ]
+    for directory in directories:
+        try:
+            s3_client.put_object(Bucket=bucket_name, Key=(directory))
+            print(f"Created directory s3://{bucket_name}/{directory}")
+        except Exception as e:
+            print(f"Error creating directory: {str(e)}")
+
+
+@app.route('/process-zip/<file_id>', methods=['GET'])
+def process_zip(file_id):
+    file_data = collection.find_one({'_id': ObjectId(file_id)})
+    if not file_data:
+        return jsonify({'error': 'File not found'}), 404
+
+    extracted_files = list(extract_zip(file_data['data']))
+
+    # Create directories in S3
+    create_s3_directories()
+
+    # Distribute files into test, training, and validation
+    jpg_files = [f for f in extracted_files if f.endswith('.jpg')]
+    shuffle(jpg_files)
+    total_files = len(jpg_files)
+    test_split = int(total_files * 0.8)
+    train_split = int(total_files * 0.1)
     
-def organize_files(source_dir, target_dir):
-    image_files = [f for f in os.listdir(source_dir) if f.endswith('.jpg')]
-    label_files = [f for f in os.listdir(source_dir) if f.endswith('.txt')]
+    test_files = jpg_files[:test_split]
+    train_files = jpg_files[test_split:test_split + train_split]
+    validation_files = jpg_files[test_split + train_split:]
 
-    # Randomly shuffle the list of images to ensure random distribution
-    shuffled_images = list(image_files)
-    shuffle(shuffled_images)
+    def upload_files_to_s3(files, dest_images, dest_labels):
+        for jpg_file in files:
+            label_file = jpg_file.replace('images/', 'labels/').replace('.jpg', '.txt')
+            src_img_path = os.path.join('/tmp/hpc_data_joon', jpg_file)
+            src_lbl_path = os.path.join('/tmp/hpc_data_joon', label_file)
+            dest_img_path = os.path.join(dest_images, os.path.basename(jpg_file))
+            dest_lbl_path = os.path.join(dest_labels, os.path.basename(label_file))
 
-    # Calculate the indices for splitting
-    total_images = len(shuffled_images)
-    train_end = int(0.7 * total_images)  # 70% for training
-    test_end = train_end + int(0.15 * total_images)  # 15% for testing
+            # Upload to S3
+            upload_to_s3(src_img_path, dest_img_path)
+            upload_to_s3(src_lbl_path, dest_lbl_path)
 
-    # Create train, test, validation folders for images and labels
-    for phase in ['train', 'test', 'validation']:
-        os.makedirs(os.path.join(target_dir, phase, 'images'), exist_ok=True)
-        os.makedirs(os.path.join(target_dir, phase, 'labels'), exist_ok=True)
+    upload_files_to_s3(test_files, 'test/images/', 'test/labels/')
+    upload_files_to_s3(train_files, 'training/images/', 'training/labels/')
+    upload_files_to_s3(validation_files, 'validation/images/', 'validation/labels/')
 
-    # Distribute files
-    for idx, filename in enumerate(shuffled_images):
-        if idx < train_end:
-            phase = 'train'
-        elif idx < test_end:
-            phase = 'test'
-        else:
-            phase = 'validation'
-        
-        # Get the basename without extension to find corresponding label file
-        basename = os.path.splitext(filename)[0]
-        label_file = basename + '.txt'
+    return jsonify({'status': 'Processing and uploading to S3 completed successfully'}), 200
 
-        # Move image and label files to their respective directories
-        shutil.move(os.path.join(source_dir, filename), os.path.join(target_dir, phase, 'images', filename))
-        if label_file in label_files:
-            shutil.move(os.path.join(source_dir, label_file), os.path.join(target_dir, phase, 'labels', label_file))
 
 if __name__ == '__main__':
     app.run(debug=True)
