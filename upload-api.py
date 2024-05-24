@@ -9,19 +9,28 @@ from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 import io
 from random import shuffle
 import uuid
+from dotenv import load_dotenv, find_dotenv
 
 app = Flask(__name__)
+
+# Load environment variables from aws.env file
+dotenv_path = find_dotenv('aws.env')
+load_dotenv(dotenv_path)
+
+# Debugging: print loaded environment variables
+print("AWS_ACCESS_KEY_ID:", os.getenv('AWS_ACCESS_KEY_ID'))
+print("AWS_SECRET_ACCESS_KEY:", os.getenv('AWS_SECRET_ACCESS_KEY'))
 
 # Connect to MongoDB
 client = MongoClient("mongodb+srv://joonyuan:Bokuben69!@airecycling.kspjt.mongodb.net/")
 db = client['AiRecycling']
 collection = db['images']  # This accesses the 'images' collection within the 'AiRecycling' database
 
-# Initialize the S3 client
+# Initialize the S3 client using environment variables
 s3_client = boto3.client(
     's3',
-    aws_access_key_id='AKIARJ6WUXNBLV3AJOHU',
-    aws_secret_access_key='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'
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
 )
 bucket_name = 'test-api-bucket123'
 
