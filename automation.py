@@ -33,8 +33,8 @@ def check_training_time():
     else:
         return False
     
-print(check_training_time())
-print(collection_latest = collection.find().sort('$natural', -1).limit(1)[0]['filename'])
+# print(check_training_time())
+# print(collection_latest = collection.find().sort('$natural', -1).limit(1)[0]['filename'])
 
 # Function to check for new data in MongoDB
 def check_new_data():
