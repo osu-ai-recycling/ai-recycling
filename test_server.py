@@ -41,7 +41,7 @@ parser.add_argument('--hpc', dest='is_hpc', action='store_const',
 args = parser.parse_args()
 
 MODEL_DOWNLOAD_FOLDER = "./artifacts"
-OPENVINO_MODEL_FOLDER = "./OpenVINOModel"
+OPENVINO_MODEL_FOLDER = "./best_openvino_model" # WARNING: THIS FOLDER MUST HAVE THIS NAME
 URI = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
 
 # Ensure download folders exist
@@ -114,7 +114,11 @@ def download_and_convert_newest_model():
 
     print("Exporting model to OpenVINO format...")
     command = f"python ./export.py --weights {unconverted_weights} --batch 1 --device CPU --iou {iou_thres} --conf {conf_thres} --include openvino"
-    os.system(command) # This is a blocking call
+    
+    if os.system(command): # This is a blocking call
+        print("ERROR: Model conversion failed...")
+        print("Using cached openvino model.")
+        return
 
     # Empty OpenVINO model folder
     # Then copy model over to that folder
@@ -123,8 +127,9 @@ def download_and_convert_newest_model():
     shutil.rmtree(OPENVINO_MODEL_FOLDER)
     os.makedirs(OPENVINO_MODEL_FOLDER, exist_ok=True)
 
+    # we don't need the .onnx file
     onnx_model = find('best.onnx', MODEL_DOWNLOAD_FOLDER)
-    shutil.move(onnx_model, OPENVINO_MODEL_FOLDER)
+    os.remove(onnx_model, OPENVINO_MODEL_FOLDER)
 
     openvino_folder = f'{MODEL_DOWNLOAD_FOLDER}/training_outputs/weights/best_openvino_model/'
     for filename in glob.glob(f'{openvino_folder}/*'):
