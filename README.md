@@ -1,6 +1,6 @@
-# YOLOv5 Farwest
+# AI Recycling
 
-Welcome to the YOLOv5 Farwest project repository. This project utilizes the YOLOv5 model to perform object detection tailored to specific requirements. It's designed to be easy to set up and flexible for various customization options.
+This is the main project repo for the Automated AI-Recycling OSU Project. 
 
 ## Prerequisites
 
@@ -8,6 +8,7 @@ Before starting, ensure you have the following installed on your system:
 
 - Git
 - Python 3.8 or newer
+- Requirements as specificed in requirements.txt (pip install -r requirements.txt)
 
 ## Installation
 
@@ -18,8 +19,8 @@ To get the project up and running on your local machine, follow these steps:
 First, clone the repository to your local machine using Git:
 
 ```bash
-git clone https://github.com/Aadi0032007/yolov5_farwest.git
-cd yolov5_farwest
+git clone https://github.com/osu-ai-recycling/ai-recycling
+cd ai-recycling
 pip install -r requirements.txt
 ```
 
@@ -34,7 +35,8 @@ Customized Parameters: Review **detect.py** for **customized parameters**, inclu
 To run inference with the model, execute the following command:
 
 ```bash
-python test_server.py
+python test_server.py video_path
 ```
 
 This command will process the input data using the YOLOv5 model and output the results according to the configurations set in test_server.py and detect.py.
+The parameter video_path is the path to the input video.
