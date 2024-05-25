@@ -67,6 +67,28 @@ sv_cons_frames = 4 # Number of consecutive frames to consider an object as detec
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 count_read = 0
 
+class CameraBufferCleanerThread(threading.Thread):
+    def __init__(self, camera, name='camera-buffer-cleaner-thread'):
+        self.camera = camera
+        self.last_frame = None
+        self.ret = False
+        super(CameraBufferCleanerThread, self).__init__(name=name)
+        self.lock = threading.Lock()
+        self.start()
+
+    def run(self):
+        while True:
+            try:
+                time.sleep(0.01)
+                with self.lock:
+                    self.ret, self.last_frame = self.camera.read()
+                    # print(f"Frame {frame_counter} read: {self.ret}")
+                    if not self.ret:
+                        print("Warning: Frame read failed.")
+            except Exception as e:
+                print(f"Exception in CameraBufferCleanerThread: {e}")
+                break
+
 # def unflatten(input_string):
 #     """
 #     Reformat a flat input string from detection output into a structured format.
@@ -74,7 +96,7 @@ count_read = 0
 #     values = input_string.split(',')
 #     first_value = values[0]
 #     grouped_values = [values[i:i+3] for i in range(1, len(values), 3)]
-#     return first_value, grouped_values
+#     return first_value, grouped_values-
 
 # def count_first_items(matrix, counts):
 #     """
@@ -183,7 +205,7 @@ def pickup_order(output: list) -> list:
     # return sorted by ymin
     return sorted(boxes, key = lambda b: b[1], reverse=False)
 
-def detect_and_display(cap):
+def detect_and_display(cap: CameraBufferCleanerThread):
     """
     Perform object detection on captured frames and display the results.
     """
@@ -193,24 +215,29 @@ def detect_and_display(cap):
     label_annotator = sv.LabelAnnotator(text_scale=2, text_thickness=3)
     seen_ids = []
     consecutive_frames = defaultdict(int)
+
+    print("Starting detection...")
     
     while True:
-        start_time = time.time()
         if not args.is_hpc:
             if keyboard.is_pressed('esc'):  # Listen for ESC key to stop
                 return False
     
-        ret, local_frame = cap.read()
+        # ret, local_frame = cap.read()
+        ret, local_frame = False, None
+
+        with cap.lock:
+            ret, local_frame = cap.ret, cap.last_frame
         if not ret:
+            print("Error: Could not read frame from video file.")
             return False
         
+        frame_counter += 1
+
         # Run detection on the temporary image file
         output = run(weights=weights, source=local_frame, iou_thres=iou_thres,
                         conf_thres=conf_thres, augment=augment, model=model, stride=stride,
                         names=names, pt=pt, debug_save=debug_save)
-                
-        # cv2.imshow('Object Detection', local_frame)
-        # cv2.waitKey(1) 
         
         if not response_as_bbox:
             # Every 10 frames
@@ -240,7 +267,6 @@ def detect_and_display(cap):
                 local_frame = label_annotator.annotate(local_frame, detections=detections, labels=anno_labels)
 
                 for _, (class_id, count) in enumerate(ct.items()):
-                    # print(f'{model.names[class_id]}: {count}')
                     cv2.putText(img=local_frame, text=f'{model.names[class_id]}: {count}', org=(200, (class_id+1)*150), fontFace=2, fontScale=3, color=(255,255,0), thickness=3)
 
                 for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
@@ -261,19 +287,13 @@ def detect_and_display(cap):
                 pass
 
 
+        
+        for _, (class_id, count) in enumerate(ct.items()):
+            cv2.putText(img=local_frame, text=f'{model.names[class_id]}: {count}', org=(200, (class_id+1)*150), fontFace=2, fontScale=3, color=(255,255,0), thickness=3)
+
         resized_frame = cv2.resize(np.squeeze(local_frame), (1920, 1080))
         cv2.imshow('Object Detection', resized_frame)
         cv2.waitKey(5) 
-        end_time = time.time()
-
-        # Calculate and accumulate the duration
-        duration = end_time - start_time
-        total_duration += duration
-        frame_counter += 1            
-        
-        # print(f"Received response for frame {frame_counter}: ", response_msg)
-        # print(f"Duration for this frame: {duration:.3f} seconds")
-        # print ("==================================")
 
 
 
@@ -286,8 +306,9 @@ def send_image(video_path):
     if not cap.isOpened():
         print("Error: Could not open video file.")
         return
+    buffer = CameraBufferCleanerThread(cap)
 
-    detect_and_display(cap)
+    detect_and_display(buffer)
     
     # Print the total duration after all frames are processed
     print("")
@@ -303,6 +324,7 @@ def send_image(video_path):
     #stop_threads = True
     cap.release()
     
-send_image('udp://@127.0.0.1:1234?overrun_nonfatal=1&fifo_size=50000000') # Recovers from buffer overrun
+# send_image('udp://@127.0.0.1:1234?overrun_nonfatal=1&fifo_size=50000000') # Recovers from buffer overrun
+send_image('rtsp://127.0.0.1:1234/stream')  # RTSP stream from the server
 # 'udp://@127.0.0.1:1234'
 # rtsp://192.168.0.101:8090/stream
