@@ -68,7 +68,6 @@ print()
 
 # YOLO model parameters
 weights = OPENVINO_MODEL_FOLDER
-use_openvino = True  # Whether to use OpenVINO for inference
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
 augment = False  # Whether to use image augmentation during detection
