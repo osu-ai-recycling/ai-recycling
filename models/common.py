@@ -396,7 +396,7 @@ class DetectMultiBackend(nn.Module):
             batch_dim = get_batch(ov_model)
             if batch_dim.is_static:
                 batch_size = batch_dim.get_length()
-            ov_compiled_model = core.compile_model(ov_model, device_name='AUTO')  # AUTO selects best available device
+            ov_compiled_model = core.compile_model(ov_model, device_name='GPU')  # AUTO selects best available device
             stride, names = self._load_metadata(Path(w).with_suffix('.yaml'))  # load metadata
         elif engine:  # TensorRT
             LOGGER.info(f'Loading {w} for TensorRT inference...')

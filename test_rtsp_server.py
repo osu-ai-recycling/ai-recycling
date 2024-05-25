@@ -189,6 +189,8 @@ def detect_and_display(cap):
     """
     global frame_counter, total_duration
     tracker = sv.ByteTrack()            # Bytetrack takes a number of optional arguments, TODO tuning
+    box_annotator = sv.BoxAnnotator()
+    label_annotator = sv.LabelAnnotator(text_scale=2, text_thickness=3)
     seen_ids = []
     consecutive_frames = defaultdict(int)
     
@@ -206,16 +208,9 @@ def detect_and_display(cap):
         output = run(weights=weights, source=local_frame, iou_thres=iou_thres,
                         conf_thres=conf_thres, augment=augment, model=model, stride=stride,
                         names=names, pt=pt, debug_save=debug_save)
-        color = (0, 255, 0)
-        for detection in output:
-            box, conf, clas = detection
-            cls_name = model.names[clas]
-            cv2.rectangle(local_frame, (int(box[0]), int(box[1])), (int(box[2]), int(box[3])), color, 2)
-            cv2.putText(local_frame, f'{cls_name}: {conf:.2f}', (int(box[0]), int(box[1]) - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
                 
-        cv2.imshow('Object Detection', local_frame)
-        cv2.waitKey(1) 
+        # cv2.imshow('Object Detection', local_frame)
+        # cv2.waitKey(1) 
         
         if not response_as_bbox:
             # Every 10 frames
@@ -235,6 +230,19 @@ def detect_and_display(cap):
                 detections = sv.Detections(xyxy, confidence=confs, class_id=labels)
                 detections = tracker.update_with_detections(detections)
 
+                anno_labels = [
+                    f'{tracker_id}: {model.names[class_id]}'
+                    for class_id, tracker_id
+                    in zip(detections.class_id, detections.tracker_id)
+                ]
+
+                local_frame = box_annotator.annotate(local_frame, detections)
+                local_frame = label_annotator.annotate(local_frame, detections=detections, labels=anno_labels)
+
+                for _, (class_id, count) in enumerate(ct.items()):
+                    # print(f'{model.names[class_id]}: {count}')
+                    cv2.putText(img=local_frame, text=f'{model.names[class_id]}: {count}', org=(200, (class_id+1)*150), fontFace=2, fontScale=3, color=(255,255,0), thickness=3)
+
                 for class_id, tracker_id in zip(detections.class_id, detections.tracker_id):
                     if tracker_id not in seen_ids:
                         consecutive_frames[tracker_id] += 1
@@ -246,21 +254,15 @@ def detect_and_display(cap):
                     if tracker_id not in detections.tracker_id:
                         consecutive_frames.pop(tracker_id, None)
                 count = pd.DataFrame(ct.items(), columns=['Category', 'Count'])
-
-                for idx, (class_id, count) in enumerate(dict(ct).items()):
-                    print(f'{model.names[class_id]}: {count}')
-                    cv2.putText(img=local_frame, text=f'{model.names[class_id]}: {count}', org=(200, (class_id+1)*150), fontFace=2, fontScale=3, color=(255,255,0), thickness=3)
-                
-                
-                
-                print()
             
             except (TypeError, ValueError) as e:
                 # Sometimes the detections are empty, and zip doesn't like that
                 print(e)
                 pass
-        
-        cv2.imshow('Object Detection', local_frame)
+
+
+        resized_frame = cv2.resize(np.squeeze(local_frame), (1920, 1080))
+        cv2.imshow('Object Detection', resized_frame)
         cv2.waitKey(5) 
         end_time = time.time()
 
@@ -270,7 +272,7 @@ def detect_and_display(cap):
         frame_counter += 1            
         
         # print(f"Received response for frame {frame_counter}: ", response_msg)
-        print(f"Duration for this frame: {duration:.3f} seconds")
+        # print(f"Duration for this frame: {duration:.3f} seconds")
         # print ("==================================")
 
 
@@ -301,6 +303,6 @@ def send_image(video_path):
     #stop_threads = True
     cap.release()
     
-send_image('udp://@127.0.0.1:1234')
+send_image('udp://@127.0.0.1:1234?overrun_nonfatal=1&fifo_size=50000000') # Recovers from buffer overrun
 # 'udp://@127.0.0.1:1234'
 # rtsp://192.168.0.101:8090/stream
