@@ -30,6 +30,7 @@ from detect import run, load_model
 import mlflow
 import glob
 
+
 # Paths and parameters for video processing
 parser = argparse.ArgumentParser()
 parser.add_argument("video_path", type=str, help="Path to the video to read.")
@@ -38,56 +39,42 @@ parser.add_argument('--hpc', dest='is_hpc', action='store_const',
                     help='Run on HPC config')
 args = parser.parse_args()
 
-artifacts_folder = "./artifacts"
-RUNID = os.environ["RUN_ID"]
-BASE_URI = os.environ["MLFLOW_TRACKING_URI"]
+MODEL_DOWNLOAD_FOLDER = "./artifacts"
+ONNX_MODEL_FOLDER = "./ONNX"
+URI = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
 
-mlflow.set_tracking_uri(BASE_URI)
-download_artifacts = False
+# Ensure download folders exist
+# MLFlow will not create the folder for us
+os.makedirs(MODEL_DOWNLOAD_FOLDER, exist_ok=True)
+os.makedirs(ONNX_MODEL_FOLDER, exist_ok=True)
 
-if download_artifacts:
-    mlflow.artifacts.download_artifacts(run_id=RUNID, dst_path = artifacts_folder)
+mlflow.set_tracking_uri(URI)
 
-weights_path = glob.glob(f"{artifacts_folder}/best.pt")
+# Attempt to grab the latest run ID
+print("Getting latest run ID...")
+download_artifacts = True
+try:
+    RUNID = mlflow.search_runs(search_all_experiments=True)[0]
+    print(f"\tDownloading: {RUNID}")
+except Exception:
+    download_artifacts = False
+    print("\t ERROR: Failed to get the latest run...")
+    print("\t Will attempt to use the last used model.")
 
-if weights_path is None:
-    print("Unable to find local weights file.")
-    exit(1)
+print()
+print()
 
 # YOLO model parameters
-weights = weights_path  # Path to model weights file
+weights = ONNX_MODEL_FOLDER
 use_openvino = True  # Whether to use OpenVINO for inference
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
 augment = False  # Whether to use image augmentation during detection
 debug_save = False  # Whether to save debug images
 device = "0" if args.is_hpc else "CPU"  # Specify the device to use for inference ('CPU' or 'GPU')
-response_as_bbox = True
-if use_openvino:
-    print("Exporting model to OpenVINO format...")
-    weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
-    command = f"python {yolov5_path}/export.py --weights {weights} --batch 1 --device CPU --iou {iou_thres} --conf {conf_thres} --include openvino"
-    os.system(command) # This is a blocking call
-    weights = f'{yolov5_path}/check_openvino_model'
-
-    os.remove(f'{yolov5_path}/check.onnx') # Artifact of the openvino conversion process
-
-    print("")
-    print("###")
-    print("###")
-    print("Model exported to OpenVINO format.")
-    print("Beginning inference with OpenVINO...")
-    print("###")
-    print("###")
-    print("")
-else:
-    weights = os.path.join(yolov5_path, 'check.pt')  # Path to model weights file
-
-# Load the YOLO model with the specified parameters
-model, stride, names, pt = load_model(weights=weights, device=device)
+response_as_bbox = True    
 
 # Initialize variables for frame processing and detection counts
-ct = defaultdict(int)  # Dictionary to count detected objects by category
 ct = defaultdict(int)  # Dictionary to count detected objects by category
 current_frame = None  # Variable to store the current frame for processing
 frame_lock = threading.Lock()  # Lock for thread-safe operations on the current frame
@@ -98,6 +85,42 @@ use_sv = True # Use supervision for counting unique objects
 sv_cons_frames = 4 # Number of consecutive frames to consider an object as detected
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
+def download_and_convert_newest_model():
+    for f in glob.glob(MODEL_DOWNLOAD_FOLDER):
+        os.remove(f)
+
+    # Download newest run to temporary folder
+    mlflow.artifacts.download_artifacts(run_id=RUNID, dst_path = MODEL_DOWNLOAD_FOLDER)
+    
+    unconverted_weights = glob.glob(f'{MODEL_DOWNLOAD_FOLDER}/best.pt')
+
+    if unconverted_weights is None:
+        print("\t ERROR: Model unable to be downloaded. Using saved version.")
+        return
+    
+    for f in glob.glob(ONNX_MODEL_FOLDER):
+        os.remove(f)
+
+    print("Exporting model to OpenVINO format...")
+    command = f"python ./export.py --weights {unconverted_weights} --batch 1 --device CPU --iou {iou_thres} --conf {conf_thres} --include openvino"
+    os.system(command) # This is a blocking call
+
+    os.remove('./check.onnx') # Artifact of the openvino conversion process
+
+    print("")
+    print("###")
+    print("###")
+    print("Model exported to OpenVINO format.")
+    print("Beginning inference with OpenVINO...")
+    print("###")
+    print("###")
+    print("")
+
+if download_artifacts:
+    download_and_convert_newest_model()
+
+# Load the YOLO model with the specified parameters
+model, stride, names, pt = load_model(weights=weights, device=device)
 
 def read_frames(cap):
     """
@@ -285,8 +308,6 @@ def detect_and_display():
             # print(f"Received response for frame {frame_counter}: ", response_msg)
             print(f"Duration for this frame: {duration:.3f} seconds")
             # print ("==================================")
-
-
 
 def send_image(video_path):
     """
