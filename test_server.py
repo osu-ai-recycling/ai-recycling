@@ -28,6 +28,7 @@ import time
 import supervision as sv  # For counting unique objects in detection results
 from detect import run, load_model
 import mlflow
+import shutil
 import glob
 
 
@@ -40,13 +41,13 @@ parser.add_argument('--hpc', dest='is_hpc', action='store_const',
 args = parser.parse_args()
 
 MODEL_DOWNLOAD_FOLDER = "./artifacts"
-ONNX_MODEL_FOLDER = "./ONNX"
+OPENVINO_MODEL_FOLDER = "./OpenVINOModel"
 URI = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
 
 # Ensure download folders exist
 # MLFlow will not create the folder for us
 os.makedirs(MODEL_DOWNLOAD_FOLDER, exist_ok=True)
-os.makedirs(ONNX_MODEL_FOLDER, exist_ok=True)
+os.makedirs(OPENVINO_MODEL_FOLDER, exist_ok=True)
 
 mlflow.set_tracking_uri(URI)
 
@@ -54,7 +55,9 @@ mlflow.set_tracking_uri(URI)
 print("Getting latest run ID...")
 download_artifacts = True
 try:
-    RUNID = mlflow.search_runs(search_all_experiments=True)[0]
+    RUNHISTORY = mlflow.search_runs(search_all_experiments=True)
+    RUNID = RUNHISTORY['run_id'][0]
+
     print(f"\tDownloading: {RUNID}")
 except Exception:
     download_artifacts = False
@@ -62,10 +65,9 @@ except Exception:
     print("\t Will attempt to use the last used model.")
 
 print()
-print()
 
 # YOLO model parameters
-weights = ONNX_MODEL_FOLDER
+weights = OPENVINO_MODEL_FOLDER
 use_openvino = True  # Whether to use OpenVINO for inference
 iou_thres = 0.05  # Intersection Over Union threshold for determining detection accuracy
 conf_thres = 0.65  # Confidence threshold for detecting objects
@@ -85,27 +87,48 @@ use_sv = True # Use supervision for counting unique objects
 sv_cons_frames = 4 # Number of consecutive frames to consider an object as detected
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
+def find(name, path):
+    for root, dirs, files in os.walk(path):
+        if name in files:
+            return os.path.join(root, name)
+    return None
+
 def download_and_convert_newest_model():
-    for f in glob.glob(MODEL_DOWNLOAD_FOLDER):
-        os.remove(f)
+    # Empty YOLOv5 model download folder
+    shutil.rmtree(MODEL_DOWNLOAD_FOLDER)
+    os.makedirs(MODEL_DOWNLOAD_FOLDER, exist_ok=True)
 
     # Download newest run to temporary folder
     mlflow.artifacts.download_artifacts(run_id=RUNID, dst_path = MODEL_DOWNLOAD_FOLDER)
-    
-    unconverted_weights = glob.glob(f'{MODEL_DOWNLOAD_FOLDER}/best.pt')
+    print()
+
+    unconverted_weights = find('best.pt', MODEL_DOWNLOAD_FOLDER)
+
+    print()
+    print(f'CONVERTING {unconverted_weights}')
+    print()
 
     if unconverted_weights is None:
-        print("\t ERROR: Model unable to be downloaded. Using saved version.")
-        return
-    
-    for f in glob.glob(ONNX_MODEL_FOLDER):
-        os.remove(f)
+        print("ERROR: Could not find downloaded weights.")
+        exit(1)
 
     print("Exporting model to OpenVINO format...")
     command = f"python ./export.py --weights {unconverted_weights} --batch 1 --device CPU --iou {iou_thres} --conf {conf_thres} --include openvino"
     os.system(command) # This is a blocking call
 
-    os.remove('./check.onnx') # Artifact of the openvino conversion process
+    # Empty OpenVINO model folder
+    # Then copy model over to that folder
+    # This is so that if we can load the previously used model in the future
+    
+    shutil.rmtree(OPENVINO_MODEL_FOLDER)
+    os.makedirs(OPENVINO_MODEL_FOLDER, exist_ok=True)
+
+    onnx_model = find('best.onnx', MODEL_DOWNLOAD_FOLDER)
+    shutil.move(onnx_model, OPENVINO_MODEL_FOLDER)
+
+    openvino_folder = f'{MODEL_DOWNLOAD_FOLDER}/training_outputs/weights/best_openvino_model/'
+    for filename in glob.glob(f'{openvino_folder}/*'):
+        shutil.move(filename, OPENVINO_MODEL_FOLDER)
 
     print("")
     print("###")
