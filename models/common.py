@@ -390,13 +390,14 @@ class DetectMultiBackend(nn.Module):
             core = Core()
             if not Path(w).is_file():  # if not *.xml
                 w = next(Path(w).glob('*.xml'))  # get *.xml file from *_openvino_model dir
+            core.set_property({'CACHE_DIR': 'cache'})
             ov_model = core.read_model(model=w, weights=Path(w).with_suffix('.bin'))
             if ov_model.get_parameters()[0].get_layout().empty:
                 ov_model.get_parameters()[0].set_layout(Layout('NCHW'))
             batch_dim = get_batch(ov_model)
             if batch_dim.is_static:
                 batch_size = batch_dim.get_length()
-            ov_compiled_model = core.compile_model(ov_model, device_name='AUTO')  # AUTO selects best available device
+            ov_compiled_model = core.compile_model(ov_model, device_name='GPU')  # AUTO selects best available device
             stride, names = self._load_metadata(Path(w).with_suffix('.yaml'))  # load metadata
         elif engine:  # TensorRT
             LOGGER.info(f'Loading {w} for TensorRT inference...')

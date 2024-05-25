@@ -1,0 +1,142 @@
+
+  _     ._   __/__   _ _  _  _ _/_   Recorded: 10:21:05  Samples:  7260
+ /_//_/// /_\ / //_// / //_'/ //     Duration: 9.164     CPU time: 9.875
+/   _/                      v4.6.2
+
+Program: C:\Users\USER\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.10_qbz5n2kfra8p0\LocalCache\local-packages\Python310\Scripts\pyinstrument -o screenshots/img5.png.txt test_server.py screenshots/img5.png
+
+9.159 <module>  test_server.py:1
+├─ 6.758 <module>  detect.py:1
+│  ├─ 3.389 <module>  models\common.py:1
+│  │  ├─ 1.881 <module>  ultralytics\__init__.py:1
+│  │  │  └─ 1.807 <module>  ultralytics\data\__init__.py:1
+│  │  │     └─ 1.797 <module>  ultralytics\data\base.py:1
+│  │  │        └─ 1.760 <module>  ultralytics\utils\__init__.py:1
+│  │  │           ├─ 0.961 SettingsManager.__init__  ultralytics\utils\__init__.py:843
+│  │  │           │  └─ 0.952 <module>  ultralytics\utils\torch_utils.py:1
+│  │  │           │     ├─ 0.848 <module>  torchvision\__init__.py:1
+│  │  │           │     │  ├─ 0.694 <module>  torchvision\models\__init__.py:1
+│  │  │           │     │  │  └─ 0.601 <module>  torchvision\models\convnext.py:1
+│  │  │           │     │  │     └─ 0.599 <module>  torchvision\ops\__init__.py:1
+│  │  │           │     │  │        ├─ 0.451 <module>  torchvision\ops\poolers.py:1
+│  │  │           │     │  │        │  └─ 0.449 <module>  torchvision\ops\roi_align.py:1
+│  │  │           │     │  │        │     └─ 0.449 <module>  torch\_dynamo\__init__.py:1
+│  │  │           │     │  │        │        ├─ 0.220 <module>  torch\_dynamo\decorators.py:1
+│  │  │           │     │  │        │        │  └─ 0.219 inner  torch\_dynamo\decorators.py:101
+│  │  │           │     │  │        │        │     └─ 0.219 FunctionIdSet.remove  torch\_dynamo\allowed_functions.py:80
+│  │  │           │     │  │        │        │        └─ 0.219 FunctionIdSet.__call__  torch\_dynamo\allowed_functions.py:61
+│  │  │           │     │  │        │        │           └─ 0.217 _allowed_function_ids  torch\_dynamo\allowed_functions.py:147
+│  │  │           │     │  │        │        │              └─ 0.212 _find_torch_objects  torch\_dynamo\allowed_functions.py:186
+│  │  │           │     │  │        │        │                 └─ 0.200 _find_torch_objects  torch\_dynamo\allowed_functions.py:186
+│  │  │           │     │  │        │        │                    └─ 0.165 _find_torch_objects  torch\_dynamo\allowed_functions.py:186
+│  │  │           │     │  │        │        │                       └─ 0.092 _find_torch_objects  torch\_dynamo\allowed_functions.py:186
+│  │  │           │     │  │        │        └─ 0.198 <module>  torch\_dynamo\convert_frame.py:1
+│  │  │           │     │  │        │           └─ 0.116 <module>  torch\_dynamo\eval_frame.py:1
+│  │  │           │     │  │        │              └─ 0.108 <module>  torch\_dynamo\skipfiles.py:1
+│  │  │           │     │  │        │                 └─ 0.100 add  torch\_dynamo\skipfiles.py:190
+│  │  │           │     │  │        └─ 0.137 <module>  torchvision\ops\_register_onnx_ops.py:1
+│  │  │           │     │  │           └─ 0.136 <module>  torch\onnx\__init__.py:1
+│  │  │           │     │  └─ 0.145 <module>  torchvision\datasets\__init__.py:1
+│  │  │           │     └─ 0.101 <module>  thop\__init__.py:1
+│  │  │           │        └─ 0.100 <module>  thop\profile.py:1
+│  │  │           │           └─ 0.096 DistutilsMetaFinder.find_spec  _distutils_hack\__init__.py:89
+│  │  │           │              └─ 0.096 DistutilsMetaFinder.spec_for_distutils  _distutils_hack\__init__.py:99
+│  │  │           │                 └─ 0.096 import_module  importlib\__init__.py:108
+│  │  │           │                    └─ 0.095 <module>  setuptools\__init__.py:1
+│  │  │           └─ 0.734 is_jupyter  ultralytics\utils\__init__.py:429
+│  │  │              └─ 0.732 <module>  IPython\__init__.py:1
+│  │  │                 └─ 0.640 <module>  IPython\terminal\embed.py:1
+│  │  │                    └─ 0.478 <module>  IPython\terminal\interactiveshell.py:1
+│  │  │                       ├─ 0.292 <module>  IPython\terminal\debugger.py:1
+│  │  │                       │  └─ 0.271 <module>  IPython\core\completer.py:1
+│  │  │                       │     └─ 0.255 <module>  jedi\__init__.py:1
+│  │  │                       │        └─ 0.247 <module>  jedi\api\__init__.py:1
+│  │  │                       │           └─ 0.108 loads  <built-in>
+│  │  │                       └─ 0.178 <module>  prompt_toolkit\__init__.py:1
+│  │  │                          └─ 0.153 <module>  prompt_toolkit\application\__init__.py:1
+│  │  │                             └─ 0.151 <module>  prompt_toolkit\application\application.py:1
+│  │  │                                └─ 0.097 <module>  prompt_toolkit\buffer.py:1
+│  │  ├─ 1.378 <module>  utils\dataloaders.py:1
+│  │  │  └─ 1.377 <module>  utils\augmentations.py:1
+│  │  │     └─ 1.370 <module>  utils\general.py:1
+│  │  │        ├─ 1.189 stack  inspect.py:1671
+│  │  │        │     [14 frames hidden]  inspect, ntpath, <built-in>
+│  │  │        └─ 0.174 <module>  pkg_resources\__init__.py:1
+│  │  │           └─ 0.141 _call_aside  pkg_resources\__init__.py:3301
+│  │  │              └─ 0.141 _initialize_master_working_set  pkg_resources\__init__.py:3327
+│  │  └─ 0.123 <module>  requests\__init__.py:1
+│  ├─ 3.010 <module>  torch\__init__.py:1
+│  │  ├─ 1.183 <module>  torch\_meta_registrations.py:1
+│  │  │  └─ 1.044 <module>  torch\_decomp\__init__.py:1
+│  │  │     ├─ 0.933 <module>  torch\_decomp\decompositions.py:1
+│  │  │     │  └─ 0.893 <module>  torch\_prims\__init__.py:1
+│  │  │     │     └─ 0.810 register_debug_prims  torch\_prims\debug_prims.py:28
+│  │  │     │        └─ 0.808 inner  torch\_custom_op\impl.py:329
+│  │  │     │           └─ 0.808 CustomOp._register_impl  torch\_custom_op\impl.py:211
+│  │  │     │              └─ 0.808 getframeinfo  inspect.py:1604
+│  │  │     │                    [9 frames hidden]  inspect, ntpath, <built-in>, genericpath
+│  │  │     └─ 0.105 <module>  torch\_refs\__init__.py:1
+│  │  ├─ 0.566 <module>  torch\masked\__init__.py:1
+│  │  │  └─ 0.555 <module>  torch\masked\_ops.py:1
+│  │  │     └─ 0.552 <module>  torch\_prims_common\__init__.py:1
+│  │  │        └─ 0.550 <module>  sympy\__init__.py:1
+│  │  │           └─ 0.299 <module>  sympy\polys\__init__.py:1
+│  │  │              ├─ 0.138 <module>  sympy\polys\polyfuncs.py:1
+│  │  │              │  └─ 0.137 <module>  sympy\polys\specialpolys.py:1
+│  │  │              │     └─ 0.125 <module>  sympy\polys\rings.py:1
+│  │  │              │        └─ 0.122 <module>  sympy\printing\__init__.py:1
+│  │  │              │           └─ 0.096 <module>  sympy\printing\latex.py:1
+│  │  │              │              └─ 0.096 <module>  sympy\tensor\__init__.py:1
+│  │  │              └─ 0.099 <module>  sympy\polys\partfrac.py:1
+│  │  │                 └─ 0.099 xthreaded  sympy\utilities\decorator.py:59
+│  │  │                    └─ 0.099 threaded_factory  sympy\utilities\decorator.py:10
+│  │  │                       └─ 0.098 <module>  sympy\matrices\__init__.py:1
+│  │  ├─ 0.514 [self]  torch\__init__.py
+│  │  ├─ 0.164 <module>  torch\functional.py:1
+│  │  │  └─ 0.157 <module>  torch\nn\__init__.py:1
+│  │  │     └─ 0.144 <module>  torch\nn\modules\__init__.py:1
+│  │  └─ 0.103 <module>  torch\export\__init__.py:1
+│  └─ 0.352 <module>  utils\plots.py:1
+│     └─ 0.346 <module>  seaborn\__init__.py:1
+│        └─ 0.288 <module>  seaborn\relational.py:1
+│           └─ 0.282 <module>  seaborn\_statistics.py:1
+│              └─ 0.281 <module>  scipy\stats\__init__.py:1
+│                 └─ 0.237 <module>  scipy\stats\_stats_py.py:1
+│                    └─ 0.173 <module>  scipy\stats\distributions.py:1
+│                       └─ 0.105 <module>  scipy\stats\_continuous_distns.py:1
+│                          └─ 0.093 nakagami_gen.__init__  scipy\stats\_distn_infrastructure.py:1797
+├─ 0.941 <module>  supervision\__init__.py:1
+│  ├─ 0.579 <module>  supervision\annotators\core.py:1
+│  │  └─ 0.564 <module>  supervision\annotators\utils.py:1
+│  │     └─ 0.562 <module>  supervision\draw\color.py:1
+│  │        ├─ 0.421 <module>  matplotlib\pyplot.py:1
+│  │        │  ├─ 0.217 <module>  matplotlib\figure.py:1
+│  │        │  │  └─ 0.201 <module>  matplotlib\projections\__init__.py:1
+│  │        │  │     └─ 0.118 <module>  matplotlib\axes\__init__.py:1
+│  │        │  └─ 0.163 <module>  matplotlib\colorbar.py:1
+│  │        │     └─ 0.093 <module>  matplotlib\contour.py:1
+│  │        └─ 0.137 <module>  matplotlib\__init__.py:1
+│  │           └─ 0.096 <module>  matplotlib\rcsetup.py:1
+│  └─ 0.249 <module>  supervision\tracker\byte_tracker\core.py:1
+│     └─ 0.247 <module>  supervision\tracker\byte_tracker\matching.py:1
+│        └─ 0.230 <module>  scipy\optimize\__init__.py:1
+│           └─ 0.098 <module>  scipy\optimize\_optimize.py:1
+│              └─ 0.093 <module>  scipy\sparse\__init__.py:1
+├─ 0.502 load_model  detect.py:62
+│  └─ 0.460 DetectMultiBackend.__init__  models\common.py:329
+│     └─ 0.421 Core.compile_model  openvino\runtime\ie_api.py:482
+├─ 0.363 <module>  pandas\__init__.py:1
+│  └─ 0.263 <module>  pandas\core\api.py:1
+│     └─ 0.131 <module>  pandas\core\groupby\__init__.py:1
+│        └─ 0.130 <module>  pandas\core\groupby\generic.py:1
+│           └─ 0.113 <module>  pandas\core\frame.py:1
+├─ 0.255 send_image  test_server.py:375
+│  └─ 0.207 detect_and_display_img  test_server.py:291
+│     └─ 0.203 decorate_context  torch\utils\_contextlib.py:112
+│        └─ 0.202 run  detect.py:72
+│           └─ 0.140 imwrite  ultralytics\utils\patches.py:29
+│              └─ 0.094 ndarray.tofile  <built-in>
+├─ 0.173 <module>  cv2\__init__.py:1
+│  └─ 0.136 <module>  numpy\__init__.py:1
+└─ 0.122 <module>  openvino\__init__.py:1
+
