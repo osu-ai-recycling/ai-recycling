@@ -40,3 +40,10 @@ python test_server.py video_path
 
 This command will process the input data using the YOLOv5 model and output the results according to the configurations set in test_server.py and detect.py.
 The parameter video_path is the path to the input video.
+
+### 4. Deployment Information
+
+![Screenshot 2024-05-25 200312](https://github.com/osu-ai-recycling/ai-recycling/assets/39309332/1c9faa6f-0b4c-42ad-b942-c7dc86150a23)
+
+For deployment, the client will check with the MLFlow server for new weights, download those, and convert them to an openVINO model for inference on integrated graphics. Then, it will run inference on a video or video stream and report object counts. 
+
