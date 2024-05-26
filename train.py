@@ -23,6 +23,7 @@ import subprocess
 import sys
 import time
 import mlflow  # Import MLFlow for integration
+from mlflow.tracking import MlflowClient
 import requests # Required to test if MLFlow server exists
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -392,7 +393,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                                                 plots=False,
                                                 callbacks=callbacks,
                                                 compute_loss=compute_loss)
-                mAP_0_95 = results[3] 
+                mAP_0_95 = results[3]
                 if mAP_0_95 > highest_mAP:
                     highest_mAP = mAP_0_95
 
@@ -509,6 +510,7 @@ def parse_opt(known=False):
     parser.add_argument('--save-period', type=int, default=-1, help='Save checkpoint every x epochs (disabled if < 1)')
     parser.add_argument('--seed', type=int, default=0, help='Global training seed')
     parser.add_argument('--local_rank', type=int, default=-1, help='Automatic DDP Multi-GPU argument, do not modify')
+    parser.add_argument('--tracking_uri', type=str, default='', help='Version of dataset artifact to use')
 
     # Logger arguments
     parser.add_argument('--entity', default=None, help='Entity')
@@ -676,14 +678,29 @@ def run(**kwargs):
     main(opt)
     return opt
 
+def download_best_weight():
+    # Get best run_id
+    run_id = "2ebdc9e4dc474c3d861a8bc1a732e832"
+    file_path = "training_outputs/weights/best.pt"
+    download_location = "./.temp_weights/"
+    if not os.path.exists(download_location):
+        os.mkdir(download_location)
+    client = MlflowClient()
+    LOGGER.info(f"Downloading weights of run_id {run_id}")
+    return client.download_artifacts(run_id, file_path, download_location)
 
 if __name__ == '__main__':
-    tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
+    opt = parse_opt()
+    tracking_uri = opt.tracking_uri or "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
+    LOGGER.info(f"MLFLOW tracking-uri: {tracking_uri}")
     if is_server_reachable(tracking_uri):
         LOGGER.info(f'CONNECTED TO MLFLOW')
         mlflow.set_tracking_uri(tracking_uri)
+        if opt.weights == "MLFlow":
+            opt.weights = download_best_weight()
+            if opt.weights:
+                LOGGER.info("Successfully downloaded weights")
         with mlflow.start_run(run_name=datetime.now().strftime('%Y-%m-%d_%H-%M-%S')):
-            opt = parse_opt()
             main(opt)
             # Get the current MLflow run ID
             run_id = mlflow.active_run().info.run_id
@@ -692,5 +709,8 @@ if __name__ == '__main__':
             LOGGER.info(f"MLflow run URL: {url}")
     else:
         LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
-        opt = parse_opt()
+        if opt.weights == "MLFlow":
+            LOGGER.info("Use local weights instead.")
+            exit()
         main(opt)
+
