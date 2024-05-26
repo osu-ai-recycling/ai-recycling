@@ -7,7 +7,7 @@ This is the main project repo for the Automated AI-Recycling OSU Project.
 Before starting, ensure you have the following installed on your system:
 
 - Git
-- Python 3.8 or newer
+- 3.8 <= Python <= 3.11 (PyTorch does not work with newer versions of Python yet)
 - Requirements as specificed in requirements.txt (pip install -r requirements.txt)
 
 ## Installation
