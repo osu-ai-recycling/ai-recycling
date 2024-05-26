@@ -3,13 +3,13 @@
 This is the main project repo for the Automated AI-Recycling OSU Project. 
 
 ## Overview
-This current release of the AI-Recycling project involves an video recognition model capable of detecting and counting objects in a video. The model is based on the YOLOv5 architecture and is trained on a custom dataset of recyclable objects. The model is capable of detecting and counting objects in a video, and the results are output to the screen. The model is also capable of running in real-time on a video stream.
+This current release of the AI-Recycling project involves a video recognition model capable of detecting and counting objects in a video. The model is based on the YOLOv5 architecture and is trained on a custom dataset of recyclable objects. The model is capable of detecting and counting objects in a video, and the results are output to the screen. The model is also capable of running in real-time on a video stream.
 
 ### Deployment Information
 
 ![Screenshot 2024-05-25 200312](https://github.com/osu-ai-recycling/ai-recycling/assets/39309332/1c9faa6f-0b4c-42ad-b942-c7dc86150a23)
 
-For deployment, the client will check with the MLFlow server for new weights, download those, and convert them to an openVINO model for inference on integrated graphics. Then, it will run inference on a video or video stream and report object counts. 
+For deployment, the client will check with the MLFlow server for new weights for the custom dataset, download those, and convert them to an openVINO model for inference on integrated graphics. Then, it will run inference on a video or video stream and report object counts.
 
 ## Prerequisites
 
@@ -50,4 +50,10 @@ python test_server.py video_path
 This command will process the input data using the YOLOv5 model and output the results according to the configurations set in test_server.py and detect.py. This process will run the model on the input video and count objects detected in the video as well as output the results to the screen
 using OpenCV.
 The parameter video_path is the path to the input video.
+
+Examples:
+```bash
+python test_server.py recyclingvideo.mp4
+python test_server.py rtsp://127.0.0.1:1234/stream
+```
 
