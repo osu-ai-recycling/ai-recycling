@@ -31,6 +31,7 @@ mlartifacts/
 
 # Ignore python environment
 .recyclingEnv/
+recyclingEnv
 
 # Ignore generated yolov5s.pt
 yolov5s.pt
