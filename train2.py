@@ -21,8 +21,6 @@ import random
 import subprocess
 import sys
 import time
-import mlflow
-import requests
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -102,13 +100,6 @@ WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 GIT_INFO = check_git_info()
 
 
-def is_server_reachable(uri):
-    try:
-        response = requests.get(uri, timeout=5)  # wait max 5 seconds
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        return False
-
 def train(hyp, opt, device, callbacks):
     """
     Trains YOLOv5 model with given hyperparameters, options, and device, managing datasets, model architecture, loss
@@ -116,16 +107,6 @@ def train(hyp, opt, device, callbacks):
 
     `hyp` argument is path/to/hyp.yaml or hyp dictionary.
     """
-
-    # MLFlow variable
-    highest_mAP = 0.0
-    mlflow_server_available = False
-
-    if is_server_reachable("http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"):
-        mlflow_server_available = True
-    else:
-        mlflow_server_available = False
-
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = (
         Path(opt.save_dir),
         opt.epochs,
@@ -455,10 +436,6 @@ def train(hyp, opt, device, callbacks):
                     callbacks=callbacks,
                     compute_loss=compute_loss,
                 )
-            
-            mAP_0_95 = results[3] 
-            if mAP_0_95 > highest_mAP:
-                highest_mAP = mAP_0_95
 
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
@@ -526,15 +503,10 @@ def train(hyp, opt, device, callbacks):
                     )  # val best model with plots
                     if is_coco:
                         callbacks.run("on_fit_epoch_end", list(mloss) + list(results) + lr, epoch, best_fitness, fi)
-                if mlflow_server_available:
-                    mlflow.log_metric("mAP_0.5_0.95", mAP_0_95)
 
         callbacks.run("on_train_end", last, best, epoch, results)
 
     torch.cuda.empty_cache()
-    if mlflow_server_available:
-        LOGGER.info(f'Logging training outputs to MLFLOW')
-        mlflow.log_artifacts(save_dir, 'training_outputs')
     return results
 
 
@@ -859,7 +831,11 @@ def generate_individual(input_ranges, individual_length):
 
 
 def run(**kwargs):
-    # Usage: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m.pt')
+    """
+    Executes YOLOv5 training with given options, overriding with any kwargs provided.
+
+    Example: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m.pt')
+    """
     opt = parse_opt(True)
     for k, v in kwargs.items():
         setattr(opt, k, v)
@@ -867,23 +843,6 @@ def run(**kwargs):
     return opt
 
 
-if __name__ == '__main__':
-    tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
-    try:
-        if is_server_reachable(tracking_uri):
-            LOGGER.info(f'CONNECTED TO MLFLOW')
-            mlflow.set_tracking_uri(tracking_uri)
-            with mlflow.start_run(run_name=datetime.now().strftime('%Y-%m-%d_%H-%M-%S')):
-                opt = parse_opt()
-                main(opt)
-                # Get the current MLflow run ID
-                run_id = mlflow.active_run().info.run_id
-                # Build the URL with the current date and time
-                url = f"{tracking_uri}/#/experiments/0/runs/{run_id}"
-                LOGGER.info(f"MLflow run URL: {url}")
-        else:
-            LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
-            opt = parse_opt()
-            main(opt)
-    except Exception as e:
-        LOGGER.error(f'An error occurred: {e}', exc_info=True)
+if __name__ == "__main__":
+    opt = parse_opt()
+    main(opt)
