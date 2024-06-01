@@ -454,6 +454,9 @@ def train(hyp, opt, device, callbacks):
                     callbacks=callbacks,
                     compute_loss=compute_loss,
                 )
+            mAP_0_95 = results[3]
+            if mAP_0_95 > highest_mAP:
+                highest_mAP = mAP_0_95
 
             # Update best mAP
             fi = fitness(np.array(results).reshape(1, -1))  # weighted combination of [P, R, mAP@.5, mAP@.5-.95]
