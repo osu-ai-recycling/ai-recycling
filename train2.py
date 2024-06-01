@@ -849,10 +849,10 @@ def run(**kwargs):
 
 
 if __name__ == '__main__':
-    tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
+    # tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
     # if is_server_reachable(tracking_uri):
     #     LOGGER.info(f'CONNECTED TO MLFLOW')
-    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_tracking_uri("http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/")
     with mlflow.start_run():
         opt = parse_opt()
         main(opt)
