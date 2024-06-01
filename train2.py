@@ -21,6 +21,8 @@ import random
 import subprocess
 import sys
 import time
+import mlflow
+import requests
 from copy import deepcopy
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -99,6 +101,13 @@ RANK = int(os.getenv("RANK", -1))
 WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 GIT_INFO = check_git_info()
 
+
+def is_server_reachable(uri):
+    try:
+        response = requests.get(uri, timeout=5)  # wait max 5 seconds
+        return response.status_code == 200
+    except requests.exceptions.RequestException:
+        return False
 
 def train(hyp, opt, device, callbacks):
     """
@@ -831,11 +840,7 @@ def generate_individual(input_ranges, individual_length):
 
 
 def run(**kwargs):
-    """
-    Executes YOLOv5 training with given options, overriding with any kwargs provided.
-
-    Example: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m.pt')
-    """
+    # Usage: import train; train.run(data='coco128.yaml', imgsz=320, weights='yolov5m.pt')
     opt = parse_opt(True)
     for k, v in kwargs.items():
         setattr(opt, k, v)
@@ -843,6 +848,20 @@ def run(**kwargs):
     return opt
 
 
-if __name__ == "__main__":
-    opt = parse_opt()
-    main(opt)
+if __name__ == '__main__':
+    tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
+    if is_server_reachable(tracking_uri):
+        LOGGER.info(f'CONNECTED TO MLFLOW')
+        mlflow.set_tracking_uri(tracking_uri)
+        with mlflow.start_run():
+            opt = parse_opt()
+            main(opt)
+            # # Get the current MLflow run ID
+            # run_id = mlflow.active_run().info.run_id
+            # # Build the URL with the current date and time
+            # url = f"{tracking_uri}/#/experiments/0/runs/{run_id}"
+            # LOGGER.info(f"MLflow run URL: {url}")
+    else:
+        LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
+        opt = parse_opt()
+        main(opt)
