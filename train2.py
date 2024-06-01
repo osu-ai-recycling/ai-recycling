@@ -102,12 +102,12 @@ WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 GIT_INFO = check_git_info()
 
 
-# def is_server_reachable(uri):
-#     try:
-#         response = requests.get(uri, timeout=5)  # wait max 5 seconds
-#         return response.status_code == 200
-#     except requests.exceptions.RequestException:
-#         return False
+def is_server_reachable(uri):
+    try:
+        response = requests.get(uri, timeout=5)  # wait max 5 seconds
+        return response.status_code == 200
+    except requests.exceptions.RequestException:
+        return False
 
 def train(hyp, opt, device, callbacks):
     """
@@ -116,6 +116,15 @@ def train(hyp, opt, device, callbacks):
 
     `hyp` argument is path/to/hyp.yaml or hyp dictionary.
     """
+    # MLFlow variable
+    highest_mAP = 0.0
+    mlflow_server_available = False
+
+    if is_server_reachable("http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"):
+        mlflow_server_available = True
+    else:
+        mlflow_server_available = False
+
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = (
         Path(opt.save_dir),
         opt.epochs,
@@ -512,10 +521,15 @@ def train(hyp, opt, device, callbacks):
                     )  # val best model with plots
                     if is_coco:
                         callbacks.run("on_fit_epoch_end", list(mloss) + list(results) + lr, epoch, best_fitness, fi)
+                if mlflow_server_available:
+                    mlflow.log_metric("mAP_0.5_0.95", mAP_0_95)
 
         callbacks.run("on_train_end", last, best, epoch, results)
 
     torch.cuda.empty_cache()
+    if mlflow_server_available:
+        LOGGER.info(f'Logging training outputs to MLFLOW')
+        mlflow.log_artifacts(save_dir, 'training_outputs')
     return results
 
 
@@ -850,18 +864,18 @@ def run(**kwargs):
 
 if __name__ == '__main__':
     tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
-    # if is_server_reachable(tracking_uri):
-    #     LOGGER.info(f'CONNECTED TO MLFLOW')
-    #     mlflow.set_tracking_uri("http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/")
-    with mlflow.start_run():
-        opt = parse_opt()
-        main(opt)
-    #         # Get the current MLflow run ID
-    #         run_id = mlflow.active_run().info.run_id
-    #         # Build the URL with the current date and time
-    #         url = f"{tracking_uri}/#/experiments/0/runs/{run_id}"
-    #         LOGGER.info(f"MLflow run URL: {url}")
-    # else:
-    #     LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
+    if is_server_reachable(tracking_uri):
+        LOGGER.info(f'CONNECTED TO MLFLOW')
+        mlflow.set_tracking_uri("http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/")
+        with mlflow.start_run():
+            opt = parse_opt()
+            main(opt)
+            # Get the current MLflow run ID
+            run_id = mlflow.active_run().info.run_id
+            # Build the URL with the current date and time
+            url = f"{tracking_uri}/#/experiments/0/runs/{run_id}"
+            LOGGER.info(f"MLflow run URL: {url}")
+    else:
+        LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
     opt = parse_opt()
     main(opt)
