@@ -118,14 +118,7 @@ def train(hyp, opt, device, callbacks):
     """
 
     # MLFlow variable
-    mlflow_server_available = False
     highest_mAP = 0.0
-
-    # Initialize MLFlow tracking
-    if is_server_reachable(tracking_uri):
-        mlflow_server_available = True
-    else:
-        mlflow_server_available = False
 
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = (
         Path(opt.save_dir),
@@ -527,11 +520,13 @@ def train(hyp, opt, device, callbacks):
                     )  # val best model with plots
                     if is_coco:
                         callbacks.run("on_fit_epoch_end", list(mloss) + list(results) + lr, epoch, best_fitness, fi)
+                if is_server_reachable:
+                    mlflow.log_metric("mAP_0.5_0.95", mAP_0_95)
 
         callbacks.run("on_train_end", last, best, epoch, results)
 
     torch.cuda.empty_cache()
-    if mlflow_server_available:
+    if is_server_reachable("http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"):
         LOGGER.info(f'Logging training outputs to MLFLOW')
         mlflow.log_artifacts(save_dir, 'training_outputs')
     return results
