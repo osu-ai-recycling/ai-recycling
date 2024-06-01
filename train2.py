@@ -850,18 +850,18 @@ def run(**kwargs):
 
 if __name__ == '__main__':
     tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
-    if is_server_reachable(tracking_uri):
-        LOGGER.info(f'CONNECTED TO MLFLOW')
-        mlflow.set_tracking_uri(tracking_uri)
-        with mlflow.start_run():
-            opt = parse_opt()
-            main(opt)
+    # if is_server_reachable(tracking_uri):
+    #     LOGGER.info(f'CONNECTED TO MLFLOW')
+    mlflow.set_tracking_uri(tracking_uri)
+    with mlflow.start_run():
+        opt = parse_opt()
+        main(opt)
             # # Get the current MLflow run ID
             # run_id = mlflow.active_run().info.run_id
             # # Build the URL with the current date and time
             # url = f"{tracking_uri}/#/experiments/0/runs/{run_id}"
             # LOGGER.info(f"MLflow run URL: {url}")
-    else:
-        LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
-        opt = parse_opt()
-        main(opt)
+    # else:
+    #     LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
+    #     opt = parse_opt()
+    #     main(opt)
