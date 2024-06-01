@@ -102,12 +102,12 @@ WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 GIT_INFO = check_git_info()
 
 
-def is_server_reachable(uri):
-    try:
-        response = requests.get(uri, timeout=5)  # wait max 5 seconds
-        return response.status_code == 200
-    except requests.exceptions.RequestException:
-        return False
+# def is_server_reachable(uri):
+#     try:
+#         response = requests.get(uri, timeout=5)  # wait max 5 seconds
+#         return response.status_code == 200
+#     except requests.exceptions.RequestException:
+#         return False
 
 def train(hyp, opt, device, callbacks):
     """
