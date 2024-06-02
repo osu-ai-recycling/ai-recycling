@@ -102,6 +102,10 @@ WORLD_SIZE = int(os.getenv("WORLD_SIZE", 1))
 GIT_INFO = check_git_info()
 
 
+# Global variable for checking connection to mlflow
+global mlflow_server_available
+mlflow_server_available = False
+
 def is_server_reachable(uri):
     try:
         response = requests.get(uri, timeout=5)  # wait max 5 seconds
@@ -118,12 +122,6 @@ def train(hyp, opt, device, callbacks):
     """
     # MLFlow variable
     highest_mAP = 0.0
-    mlflow_server_available = False
-
-    if is_server_reachable("http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"):
-        mlflow_server_available = True
-    else:
-        mlflow_server_available = False
 
     save_dir, epochs, batch_size, weights, single_cls, evolve, data, cfg, resume, noval, nosave, workers, freeze = (
         Path(opt.save_dir),
@@ -866,10 +864,11 @@ def run(**kwargs):
 
 
 if __name__ == '__main__':
-    tracking_uri = "http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/"
-    if is_server_reachable(tracking_uri):
+    tracking_uri = "http://ec2-3-16-26-164.us-east-2.compute.amazonaws.com:5000/"
+    mlflow_server_available = is_server_reachable(tracking_uri)
+    if mlflow_server_available:
         LOGGER.info(f'CONNECTED TO MLFLOW')
-        mlflow.set_tracking_uri("http://ec2-3-21-53-196.us-east-2.compute.amazonaws.com:5000/")
+        mlflow.set_tracking_uri(tracking_uri)
         with mlflow.start_run(run_name=datetime.now().strftime('%Y-%m-%d_%H-%M-%S')):
             opt = parse_opt()
             main(opt)
