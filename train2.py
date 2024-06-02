@@ -864,7 +864,7 @@ def run(**kwargs):
 
 
 if __name__ == '__main__':
-    tracking_uri = "http://http://ec2-3-16-26-164.us-east-2.compute.amazonaws.com:5000/"
+    tracking_uri = "http://ec2-3-16-26-164.us-east-2.compute.amazonaws.com:5000/"
     mlflow_server_available = is_server_reachable(tracking_uri)
     if mlflow_server_available:
         LOGGER.info(f'CONNECTED TO MLFLOW')
