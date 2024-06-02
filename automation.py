@@ -11,7 +11,7 @@ coll_name = "images"
 experiment_id = "0"
 
 # MLflow settings
-mlflow.set_tracking_uri("http://ec2-18-220-114-91.us-east-2.compute.amazonaws.com:5000/")
+mlflow.set_tracking_uri("http://ec2-3-16-26-164.us-east-2.compute.amazonaws.com:5000/")
 experiment_name = "Default"
 mlflow.set_experiment(experiment_name)
 
