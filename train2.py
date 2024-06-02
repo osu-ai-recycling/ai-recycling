@@ -36,6 +36,7 @@ import torch.distributed as dist
 import torch.nn as nn
 import yaml
 import mlflow
+from mlflow.tracking import MlflowClient
 import requests
 from torch.optim import lr_scheduler
 from tqdm import tqdm
@@ -863,14 +864,34 @@ def run(**kwargs):
     return opt
 
 
+def download_best_weight():
+    # Get best run_id
+    run_id = "9a59084fef4f4b09925081a71bfac612"
+    file_path = "training_outputs/weights/best.pt"
+    download_location = "./.temp_weights/"
+    if not os.path.exists(download_location):
+        os.mkdir(download_location)
+    client = MlflowClient()
+    LOGGER.info(f"Downloading weights of run_id {run_id}")
+    return client.download_artifacts(run_id, file_path, download_location)
+
+
 if __name__ == '__main__':
-    tracking_uri = "http://ec2-3-16-26-164.us-east-2.compute.amazonaws.com:5000/"
+    opt = parse_opt()
+    tracking_uri = (
+        opt.tracking_uri
+        or "http://ec2-3-16-26-164.us-east-2.compute.amazonaws.com:5000/"
+    )
+    LOGGER.info(f"MLFLOW tracking-uri: {tracking_uri}")
     mlflow_server_available = is_server_reachable(tracking_uri)
     if mlflow_server_available:
         LOGGER.info(f'CONNECTED TO MLFLOW')
         mlflow.set_tracking_uri(tracking_uri)
+        if opt.weights == "MLFlow":
+            opt.weights = download_best_weight()
+            if opt.weights:
+                LOGGER.info(f"Successfully downloaded weights: {opt.weights}")
         with mlflow.start_run(run_name=datetime.now().strftime('%Y-%m-%d_%H-%M-%S')):
-            opt = parse_opt()
             main(opt)
             # Get the current MLflow run ID
             run_id = mlflow.active_run().info.run_id
@@ -879,5 +900,7 @@ if __name__ == '__main__':
             LOGGER.info(f"MLflow run URL: {url}")
     else:
         LOGGER.info(f'FAILED TO CONNECT TO MLFLOW')
-    opt = parse_opt()
-    main(opt)
+        if opt.weights == "MLFlow":
+            LOGGER.info("Use local weights instead.")
+            exit()
+        main(opt)

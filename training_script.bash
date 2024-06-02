@@ -46,7 +46,7 @@ whereis pip
 # Run training
 file="../output_$(date +"%Y_%m_%d_%I_%M_%p")"
 echo "python3 train.py --noplots $@ $file.log"
-python3 train.py --noplots $@ &> $file.log
+python3 train2.py --noplots $@ &> $file.log
 
 # Deactivate environment
 #conda deactivate
