@@ -22,13 +22,19 @@ showjob $SLURM_JOBID
 # load modules needed for job
 module load slurm
 module restore recycling_module
+#module load anaconda
+#source `which activate` fix: conda CommandNotFoundError
 
 # run my job
 date
 echo "Running ai-recycling from bash shell"
 
 # Load/update environment
+# conda init
+# conda activate recyclingEnv
+# pip install -q -r ./requirements.txt
 source recyclingEnv/bin/activate
+# conda deactivate
 
 # Run training
 file="../output_$(date +"%Y_%m_%d_%I_%M_%p")"
@@ -36,7 +42,12 @@ echo "python3 train.py --noplots $@ $file.log"
 python3 train.py --noplots $@ &> $file.log
 
 # Deactivate environment
-deactivate
+# conda deactivate
+
+# Copy new files to austin's server
+# WIP: move copies of training exp to s3 due to low storage on ec2
+# rsync -a --ignore-existing ~/hpc-share/ai-recycling/ai-recycling/runs/train/* austin:~/outputs
+# scp "../$file" austin:~/outputs
 
 date
 

@@ -538,7 +538,7 @@ def train(hyp, opt, device, callbacks):
 def parse_opt(known=False):
     """Parses command-line arguments for YOLOv5 training, validation, and testing."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--weights", type=str, default=ROOT / "yolov5s.pt", help="initial weights path")
+    parser.add_argument("--weights", type=str, default=ROOT / "yolov5s.pt", help="initial weights path; \"MLFlow\" for best model in --tracking_uri")
     parser.add_argument("--cfg", type=str, default="", help="model.yaml path")
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="dataset.yaml path")
     parser.add_argument("--hyp", type=str, default=ROOT / "data/hyps/hyp.scratch-low.yaml", help="hyperparameters path")
@@ -576,6 +576,7 @@ def parse_opt(known=False):
     parser.add_argument("--save-period", type=int, default=-1, help="Save checkpoint every x epochs (disabled if < 1)")
     parser.add_argument("--seed", type=int, default=0, help="Global training seed")
     parser.add_argument("--local_rank", type=int, default=-1, help="Automatic DDP Multi-GPU argument, do not modify")
+    parser.add_argument("--tracking_uri", type=str, default="", help="URI of the MLFlow tracking server")
 
     # Logger arguments
     parser.add_argument("--entity", default=None, help="Entity")
