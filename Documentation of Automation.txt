@@ -1,0 +1,43 @@
+This automation script will live on server forever unless terminated to check criterias for initiating training.
+
+※ Note that for connecting to MongoDB, the ip address of the device that's running this automation script might need to be registered (added)
+in that MongoDB database. Otherwise, it will fail to connect. If this problem does not occur, proceed.※
+
+First make the necessary imports [os, pymongo: [MongoClient], datetime: [datetime, timedelta], mlflow, time]
+
+Set up mongoDB connection including:
+	connection string,
+	name of the database,
+	name of the collection,
+	experiment id
+
+Set up MLFlow connection including:
+	set tracking uri,
+	name of the experiment,
+	set experiment
+
+Connect to mongoDB and set the variables for latest_collection and latest_data.
+	latest_collection is where it will be storing the latest collection it fetches from MongoDB,
+	latest_data will store the latest data it got from MongoDB for when the training script was run
+
+Check time since last training with mlflow.
+	Search for the runs in mlflow with the experiment id,
+	Get the name of the first run (this is the latest run), which is stored in a date-time format,
+	Extract with strptime and subtract datetime.now() with this run's time,
+	If it is greater than timedelta(hours=24), it returns True for being 24 hours since last training.
+	Otherwise returns False.
+
+Check for new data in MongoDB.
+	Set latest_data as global variable,
+	Grab the name of the latest collection from MongoDB with
+		`collection.find().sort('$natural', -1).limit(1)[0]['filename']`
+	If this latest collection from MongoDB is different (!=) from latest_data, it returns True,
+	Otherwise returns False.
+
+Finally, create a main loop that will run forever.
+	While True loop,
+		Check for both the training time and if there is new data in MongoDB,
+		If both are True, it will run the training script with os.system("line-to-run-training"),
+		Then it will update latest_data with collection_latest
+		
+		Otherwise, sleeps for 60 seconds time.sleep(60) and runs the loop again to check criterias for running training. 

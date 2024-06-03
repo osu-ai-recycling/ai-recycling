@@ -1,0 +1,53 @@
+At first, I tried:
+`export MLFLOW_BACKEND_STORE_URI=yolov5_farwest/runs/`
+To point to the `runs` directory in yolov5_farwest for MLFlow to track.
+
+However, it kept throwing permission issues.
+
+Thus I tried killing the server and set it up again with absolute path
+kill process:
+	`ps aux | grep mlflow`
+	It outputs PID of mlflow, and used
+	`kill {mlflow PID}`
+
+I then set the server again with:
+`sudo mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri file:///home/austin/ai-recycling/mlruns`
+
+backend-store may not be needed if it creates its own folder by setting up the server but if the need to specify the directory arises, specify 
+the full path to the directory.
+
+As a side note, when setting up the server, if it throws an error or shows an empty site with 
+no experiments, create an experiment in the mlflow server, then in the server where you will be launching the mlflow server (ssh or ec2), 
+navigate to the `mlruns` folder, you will see the meta.yaml file created from the one that was created from MLFLOW.
+
+Use that as reference to create a default folder 0 with experiment id 0 in the mlruns directory as that is where the training will be logged.
+
+Then in the code, use mlflow.log_artifacts(save_dir, 'training_outputs') to log exp folder outputs to mlflow
+
+train.py:
+
+import mlflow
+import requests # Make sure that the import statements are placed at the very end of all imports so after `import yaml` or before `from torch.optim import lr_scheduler` or else it throws segmentation faults
+
+set tracking uri
+
+check if mlflow server is available with a server check function with request.
+Waits for approximately 5 seconds and runs with mlflow in main if available, runs locally if not.
+
+Run train with mlflow in main:
+with mlflow.start_run():
+	main(opt)
+
+Log metrics with reference to this line: 
+
+if mlflow_server_available: mlflow.log_metrics(value)
+
+Log all of the training outputs in the exp folder it has created,
+including the weights best and last.pt:
+
+if mlflow_server_available: mlflow.log_artifacts(save_dir, 'training_outputs')
+
+
+To run training on server for testing, I used
+`sudo python3 train.py --batch-size 8 --epochs 5`
+
