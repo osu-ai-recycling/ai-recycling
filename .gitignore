@@ -12,6 +12,14 @@ utils/loggers/clearml/__pycache__/
 utils/loggers/comet/__pycache__/
 utils/loggers/wandb/__pycache__/
 
+# Ignore generated core files
+core*
+
+# Ignore logs
+*.err
+*.out
+*.log
+
 # Ignore runs directory
 runs/
 
@@ -23,6 +31,10 @@ mlartifacts/
 
 # Ignore python environment
 .recyclingEnv/
+recyclingEnv
 
 # Ignore generated yolov5s.pt
 yolov5s.pt
+
+# Ignore temp folder for downloaded weights
+.temp_weights
